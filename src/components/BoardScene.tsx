@@ -1,13 +1,16 @@
 import * as THREE from 'three';
-import { Canvas } from '@react-three/fiber';
+import { Canvas, useFrame } from '@react-three/fiber';
 import { OrbitControls, Text } from '@react-three/drei';
-import { useMemo } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { compareCoords, getStack, listCoords } from '../game/board';
 import { PieceModel3D } from './PieceModel3D';
-import { type Coord, type GameMove, type GameState } from '../game/types';
+import { type Coord, type GameMove, type GameState, type PieceKind, type Player } from '../game/types';
 
 const CELL_SIZE = 1.08;
 const BOARD_OFFSET = 4;
+const PIECE_BASE_Y = 0.16;
+const PIECE_STACK_STEP = 0.2;
+const MOVE_ANIMATION_MS = 280;
 
 interface BoardSceneProps {
   state: GameState;
@@ -16,8 +19,30 @@ interface BoardSceneProps {
   onSquareClick: (coord: Coord) => void;
 }
 
+interface AnimatedPieceState {
+  key: string;
+  id: string;
+  owner: Player;
+  kind: PieceKind;
+  from: [number, number, number];
+  to: [number, number, number];
+  startedAt: number;
+  durationMs: number;
+  lift: number;
+}
+
+interface AnimatedPieceProps {
+  animation: AnimatedPieceState;
+  onComplete: (key: string) => void;
+}
+
 function boardToWorld(coord: Coord): [number, number, number] {
   return [(coord.x - BOARD_OFFSET) * CELL_SIZE, 0, (coord.y - BOARD_OFFSET) * CELL_SIZE];
+}
+
+function pieceToWorld(coord: Coord, stackIndex: number): [number, number, number] {
+  const [x, , z] = boardToWorld(coord);
+  return [x, PIECE_BASE_Y + stackIndex * PIECE_STACK_STEP, z];
 }
 
 function markerPriority(type: GameMove['type']): number {
@@ -58,12 +83,108 @@ function markerColor(type: GameMove['type']): string {
   return '#d7efe9';
 }
 
+function createPieceAnimation(previousState: GameState, state: GameState): AnimatedPieceState | null {
+  const lastMove = state.history.at(-1)?.move;
+  if (!lastMove || !('from' in lastMove)) {
+    return null;
+  }
+
+  const previousSourceStack = getStack(previousState.board, lastMove.from);
+  const sourceIndex = previousSourceStack.findIndex((piece) => piece.id === lastMove.pieceId);
+  if (sourceIndex === -1) {
+    return null;
+  }
+
+  const nextTargetStack = getStack(state.board, lastMove.to);
+  const targetIndex = nextTargetStack.findIndex((piece) => piece.id === lastMove.pieceId);
+  if (targetIndex === -1) {
+    return null;
+  }
+
+  const nextPiece = nextTargetStack[targetIndex];
+  const from = pieceToWorld(lastMove.from, sourceIndex);
+  const to = pieceToWorld(lastMove.to, targetIndex);
+  const planarDistance = Math.hypot(to[0] - from[0], to[2] - from[2]);
+
+  if (planarDistance < 0.001) {
+    return null;
+  }
+
+  return {
+    key: `${state.updatedAt}:${lastMove.pieceId}`,
+    id: lastMove.pieceId,
+    owner: nextPiece.owner,
+    kind: nextPiece.kind,
+    from,
+    to,
+    startedAt: performance.now(),
+    durationMs: MOVE_ANIMATION_MS,
+    lift: Math.min(0.52, 0.16 + planarDistance * 0.14),
+  };
+}
+
+function easeOutCubic(value: number): number {
+  return 1 - Math.pow(1 - value, 3);
+}
+
+function AnimatedPiece({ animation, onComplete }: AnimatedPieceProps) {
+  const groupRef = useRef<THREE.Group>(null);
+  const completedRef = useRef(false);
+
+  useEffect(() => {
+    completedRef.current = false;
+  }, [animation.key]);
+
+  useFrame(() => {
+    const group = groupRef.current;
+    if (!group) {
+      return;
+    }
+
+    const rawProgress = (performance.now() - animation.startedAt) / animation.durationMs;
+    const progress = THREE.MathUtils.clamp(rawProgress, 0, 1);
+    const eased = easeOutCubic(progress);
+    const arc = Math.sin(Math.PI * progress) * animation.lift;
+
+    group.position.set(
+      THREE.MathUtils.lerp(animation.from[0], animation.to[0], eased),
+      THREE.MathUtils.lerp(animation.from[1], animation.to[1], eased) + arc,
+      THREE.MathUtils.lerp(animation.from[2], animation.to[2], eased),
+    );
+
+    if (progress >= 1 && !completedRef.current) {
+      completedRef.current = true;
+      onComplete(animation.key);
+    }
+  });
+
+  return (
+    <group ref={groupRef} position={animation.from}>
+      <PieceModel3D owner={animation.owner} kind={animation.kind} />
+    </group>
+  );
+}
+
 export function BoardScene({
   state,
   selectedSquare,
   highlightedMoves,
   onSquareClick,
 }: BoardSceneProps) {
+  const previousStateRef = useRef<GameState | null>(null);
+  const [animation, setAnimation] = useState<AnimatedPieceState | null>(null);
+
+  useEffect(() => {
+    const previousState = previousStateRef.current;
+    if (!previousState || previousState.updatedAt === state.updatedAt) {
+      previousStateRef.current = state;
+      return;
+    }
+
+    setAnimation(createPieceAnimation(previousState, state));
+    previousStateRef.current = state;
+  }, [state]);
+
   const moveMarkers = useMemo(() => {
     const map = new Map<string, GameMove['type']>();
 
@@ -141,7 +262,11 @@ export function BoardScene({
               ) : null}
 
               {stack.map((piece, index) => {
-                const pieceY = 0.16 + index * 0.2;
+                if (animation?.id === piece.id) {
+                  return null;
+                }
+
+                const pieceY = PIECE_BASE_Y + index * PIECE_STACK_STEP;
                 const buried = index !== stack.length - 1;
                 return (
                   <group
@@ -172,6 +297,16 @@ export function BoardScene({
             </group>
           );
         })}
+
+        {animation ? (
+          <AnimatedPiece
+            key={animation.key}
+            animation={animation}
+            onComplete={(key) => {
+              setAnimation((current) => (current?.key === key ? null : current));
+            }}
+          />
+        ) : null}
 
         {Array.from({ length: 9 }, (_, index) => {
           const label = String.fromCharCode(65 + index);
