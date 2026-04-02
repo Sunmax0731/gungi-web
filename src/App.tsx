@@ -5,7 +5,6 @@ import {
   getDefaultRuleGuideId,
   handSelectionText,
   moveActionLabel,
-  playerLabel,
   type RuleGuideId,
   victoryReasonText,
 } from './app/gameUi';
@@ -28,7 +27,16 @@ import { getPieceDefinition } from './game/pieces';
 import { getRuleset } from './game/rulesets';
 import { createInitialGame } from './game/setup';
 import { clearSavedGame, loadSavedGame, saveGame } from './game/storage';
-import { type Coord, type CpuLevel, type GameMove, type GamePhase, type PieceKind, type Player, type RulesetId, type VictoryReason } from './game/types';
+import {
+  type Coord,
+  type CpuLevel,
+  type GameMove,
+  type GamePhase,
+  type PieceKind,
+  type Player,
+  type RulesetId,
+  type VictoryReason,
+} from './game/types';
 
 const HUMAN_PLAYER: Player = 'south';
 const CPU_PLAYER: Player = 'north';
@@ -37,7 +45,9 @@ const BoardScene = lazy(() =>
   import('./components/BoardScene').then((module) => ({ default: module.BoardScene })),
 );
 
-type ConfirmActionId = 'new-game' | 'clear-save' | 'ready' | 'resign';
+type MatchMode = 'human-vs-cpu' | 'cpu-vs-cpu';
+
+type ConfirmActionId = 'new-game' | 'auto-match' | 'clear-save' | 'ready' | 'resign';
 
 type DialogState =
   | { type: 'rules' }
@@ -58,21 +68,31 @@ function getMarshalStatus(
 ) {
   if (phase === 'setup') {
     if (ready) {
-      return '上がり';
+      return '配置完了';
     }
-    return marshalExists ? '帥配置済み' : '帥未配置';
+
+    return marshalExists ? '帥を配置済み' : '帥が未配置';
   }
 
   if (!marshalExists) {
-    return '帥喪失';
+    return '帥を喪失';
   }
 
-  return threatened ? '王手' : '安全';
+  return threatened ? '脅威あり' : '安全';
+}
+
+function getParticipantLabel(player: Player, mode: MatchMode): string {
+  if (mode === 'cpu-vs-cpu') {
+    return player === 'south' ? '先手CPU' : '後手CPU';
+  }
+
+  return player === HUMAN_PLAYER ? 'あなた' : 'CPU';
 }
 
 function App() {
   const initialGame = useMemo(() => loadSavedGame() ?? createInitialGame('beginner'), []);
   const [game, setGame] = useState(initialGame);
+  const [matchMode, setMatchMode] = useState<MatchMode>('human-vs-cpu');
   const [pendingRulesetId, setPendingRulesetId] = useState<RulesetId>(initialGame.rulesetId);
   const [cpuLevel, setCpuLevel] = useState<CpuLevel>('normal');
   const [selectedSquare, setSelectedSquare] = useState<Coord | null>(null);
@@ -86,7 +106,8 @@ function App() {
   const resultDialogKeyRef = useRef<string | null>(null);
   const cpuService = useMemo(() => createCpuService(), []);
 
-  const thinking = game.turn === CPU_PLAYER && !game.winner;
+  const autoMatch = matchMode === 'cpu-vs-cpu';
+  const thinking = !game.winner && (autoMatch || game.turn === CPU_PLAYER);
   const ruleset = getRuleset(game.rulesetId);
   const legalMoves = useMemo(() => generateLegalMoves(game), [game]);
   const latestMoves = useMemo(() => [...game.history].reverse(), [game.history]);
@@ -108,6 +129,8 @@ function App() {
     () => legalMoves.some((move) => move.type === 'ready' && move.player === HUMAN_PLAYER),
     [legalMoves],
   );
+  const southLabel = getParticipantLabel(HUMAN_PLAYER, matchMode);
+  const northLabel = getParticipantLabel(CPU_PLAYER, matchMode);
 
   const selectedMoves = useMemo(() => {
     if (selectedSquare && game.phase === 'battle') {
@@ -143,43 +166,46 @@ function App() {
     }
 
     if (game.phase === 'setup') {
-      return '帥を含めて 3 段以内に配置してください。上がりは確認ダイアログ付きです。';
+      return '駒を配置して帥を含む布陣を整えてください。準備完了で対局が始まります。';
     }
 
-    return '盤上の自駒か手駒を選ぶと、指せるマスや候補アクションを表示します。';
+    return '盤上の駒か手駒を選ぶと、合法な移動先や候補アクションを確認できます。';
   }, [game.board, game.phase, selectedHandKind, selectedSquare]);
 
   const statusBanner = useMemo(() => {
     if (game.winner) {
       return {
         tone: 'victory',
-        title: `${playerLabel(game.winner)} の勝ち`,
-        detail: `決着理由: ${victoryReasonText(game.victoryReason)}`,
+        title: `${getParticipantLabel(game.winner, matchMode)} の勝ち`,
+        detail: `勝利条件: ${victoryReasonText(game.victoryReason)}`,
       };
     }
 
     if (thinking) {
       return {
         tone: 'thinking',
-        title: 'CPU 思考中',
-        detail: '合法手を探索しています。',
+        title: autoMatch ? '自動対局中' : 'CPU 思考中',
+        detail: `${getParticipantLabel(game.turn, matchMode)} が次の一手を考えています。`,
       };
     }
 
     if (game.phase === 'setup') {
       return {
         tone: 'setup',
-        title: game.turn === HUMAN_PLAYER ? '配置フェーズ' : 'CPU が配置中',
+        title:
+          game.turn === HUMAN_PLAYER
+            ? '配置フェーズ'
+            : `${getParticipantLabel(game.turn, matchMode)} が配置中`,
         detail: selectionSummary,
       };
     }
 
     return {
       tone: 'active',
-      title: game.turn === HUMAN_PLAYER ? 'あなたの手番' : 'CPU の手番',
+      title: `${getParticipantLabel(game.turn, matchMode)} の手番`,
       detail: selectionSummary,
     };
-  }, [game.phase, game.turn, game.victoryReason, game.winner, selectionSummary, thinking]);
+  }, [autoMatch, game.phase, game.turn, game.victoryReason, game.winner, matchMode, selectionSummary, thinking]);
 
   useEffect(() => {
     saveGame(game);
@@ -232,7 +258,7 @@ function App() {
                 return current;
               }
 
-              return applyMove(current, move ?? createResignMove(CPU_PLAYER));
+              return applyMove(current, move ?? createResignMove(game.turn));
             });
           });
 
@@ -275,7 +301,7 @@ function App() {
   };
 
   const handleSquareClick = (coord: Coord) => {
-    if (game.turn !== HUMAN_PLAYER || game.winner || thinking) {
+    if (autoMatch || game.turn !== HUMAN_PLAYER || game.winner || thinking) {
       return;
     }
 
@@ -353,7 +379,14 @@ function App() {
         move.pieceKind === kind,
     );
 
-    if (game.turn !== HUMAN_PLAYER || game.winner || thinking || game.hands.south[kind] <= 0 || !hasMove) {
+    if (
+      autoMatch ||
+      game.turn !== HUMAN_PLAYER ||
+      game.winner ||
+      thinking ||
+      game.hands.south[kind] <= 0 ||
+      !hasMove
+    ) {
       return;
     }
 
@@ -362,17 +395,27 @@ function App() {
     setSelectedHandKind((current) => (current === kind ? null : kind));
   };
 
-  const startNewGame = () => {
+  const startNewMatch = (mode: MatchMode) => {
+    setDialogState(null);
     startTransition(() => {
+      setMatchMode(mode);
       setGame(createInitialGame(pendingRulesetId));
     });
     clearSelectionState();
     setErrorMessage(null);
   };
 
+  const startNewGame = () => {
+    startNewMatch('human-vs-cpu');
+  };
+
+  const startAutoMatch = () => {
+    startNewMatch('cpu-vs-cpu');
+  };
+
   const removeSavedGame = () => {
     clearSavedGame();
-    setErrorMessage('保存データを削除しました。');
+    setErrorMessage('ローカル保存データを削除しました。');
   };
 
   const openRuleGuide = () => {
@@ -396,6 +439,11 @@ function App() {
       return;
     }
 
+    if (action === 'auto-match') {
+      startAutoMatch();
+      return;
+    }
+
     if (action === 'clear-save') {
       removeSavedGame();
       return;
@@ -414,19 +462,25 @@ function App() {
       ? {
           'new-game': {
             title: '新しい対局を開始しますか',
-            message: '現在の盤面と自動保存内容を上書きします。進行中の対局には戻れません。',
+            message: '現在の盤面と選択状態は破棄されます。進行中の対局には戻れません。',
             confirmLabel: '開始する',
+            tone: 'danger' as const,
+          },
+          'auto-match': {
+            title: '自動対局を開始しますか',
+            message: '現在の盤面は破棄されます。選択中のルールと難度で CPU 同士の対局を開始します。',
+            confirmLabel: '自動対局を開始',
             tone: 'danger' as const,
           },
           'clear-save': {
             title: '保存データを削除しますか',
-            message: 'ローカルストレージ上の保存データを削除します。進行中の盤面はそのままですが、再読み込み後には復元できません。',
+            message: 'ローカルストレージ上の途中保存を削除します。現在の画面上の対局はそのままですが、次回の復元はできません。',
             confirmLabel: '削除する',
             tone: 'danger' as const,
           },
           ready: {
             title: '配置を確定しますか',
-            message: '上がりを宣言すると、配置フェーズには戻れません。',
+            message: '準備完了を押すと、配置フェーズには戻れません。',
             confirmLabel: '確定する',
             tone: 'default' as const,
           },
@@ -439,7 +493,7 @@ function App() {
         }[dialogState.action]
       : null;
 
-  const southHandTitle = game.phase === 'setup' ? 'あなたの配置駒' : 'あなたの手駒';
+  const southHandTitle = game.phase === 'setup' ? `${southLabel}の配置駒` : `${southLabel}の手駒`;
 
   const northTrayItems: TrayItemState[] = visibleHandKinds.map((kind) => ({
     kind,
@@ -464,8 +518,8 @@ function App() {
       count,
       label: getPieceDefinition(kind).label,
       selected: selectedHandKind === kind,
-      disabled: count <= 0 || game.turn !== HUMAN_PLAYER || !!game.winner || thinking || !enabled,
-      readOnly: false,
+      disabled: count <= 0 || autoMatch || game.turn !== HUMAN_PLAYER || !!game.winner || thinking || !enabled,
+      readOnly: autoMatch,
       onClick: () => handleHandClick(kind),
     };
   });
@@ -476,7 +530,7 @@ function App() {
         <aside className="panel info-panel">
           <div className="panel-header">
             <p className="eyebrow">Browser Gungi</p>
-            <h1>軍儀</h1>
+            <h1>軍議</h1>
           </div>
 
           <section className="card">
@@ -491,11 +545,15 @@ function App() {
                 <dd>{game.phase === 'setup' ? '配置中' : '対局中'}</dd>
               </div>
               <div>
+                <dt>対戦</dt>
+                <dd>{autoMatch ? 'CPU vs CPU' : 'あなた vs CPU'}</dd>
+              </div>
+              <div>
                 <dt>スタック上限</dt>
                 <dd>{ruleset.maxStackHeight}</dd>
               </div>
               <div>
-                <dt>CPU</dt>
+                <dt>CPU 難度</dt>
                 <dd>{cpuLevel}</dd>
               </div>
               <div>
@@ -530,13 +588,13 @@ function App() {
             </div>
             <div className="threat-grid">
               <div className={southThreatened ? 'threat danger' : 'threat'}>
-                <span>あなた</span>
+                <span>{southLabel}</span>
                 <strong>
                   {getMarshalStatus(!!southMarshal, southThreatened, game.phase, game.setupReady.south)}
                 </strong>
               </div>
               <div className={northThreatened ? 'threat danger' : 'threat'}>
-                <span>CPU</span>
+                <span>{northLabel}</span>
                 <strong>
                   {getMarshalStatus(!!northMarshal, northThreatened, game.phase, game.setupReady.north)}
                 </strong>
@@ -583,11 +641,14 @@ function App() {
                     <option value="hard">Hard</option>
                   </select>
                 </label>
+                <button type="button" className="settings-button" onClick={() => openConfirmDialog('auto-match')}>
+                  自動対局
+                </button>
                 {game.phase === 'setup' ? (
                   <button
                     type="button"
                     className="settings-button commit-button"
-                    disabled={!canReady || game.turn !== HUMAN_PLAYER || !!game.winner || thinking}
+                    disabled={!canReady || autoMatch || game.turn !== HUMAN_PLAYER || !!game.winner || thinking}
                     onClick={() => openConfirmDialog('ready')}
                   >
                     配置を確定
@@ -606,7 +667,7 @@ function App() {
                   <button
                     type="button"
                     className="settings-button danger-button"
-                    disabled={game.turn !== HUMAN_PLAYER || !!game.winner}
+                    disabled={autoMatch || game.turn !== HUMAN_PLAYER || !!game.winner}
                     onClick={() => openConfirmDialog('resign')}
                   >
                     投了
@@ -618,7 +679,7 @@ function App() {
         </main>
 
         <aside className="panel side-panel">
-          <HandTray owner="north" title="CPU の手駒" items={northTrayItems} />
+          <HandTray owner="north" title={`${northLabel}の手駒`} items={northTrayItems} />
 
           <section className="card action-card">
             <h2>候補アクション</h2>
@@ -626,7 +687,7 @@ function App() {
               <p className="muted">
                 {game.phase === 'setup'
                   ? '手駒を選んで配置先をクリックすると、ここに候補アクションが表示されます。'
-                  : '移動先に「取る」「ツケ」「寝返り」が重なると、ここから選択します。'}
+                  : '移動元になる駒を選ぶと、ここから候補アクションを選べます。'}
               </p>
             ) : (
               <div className="action-list">
@@ -669,7 +730,12 @@ function App() {
       ) : null}
 
       {dialogState?.type === 'result' ? (
-        <GameResultDialog winner={dialogState.winner} reason={dialogState.reason} onClose={closeDialog} />
+        <GameResultDialog
+          winner={dialogState.winner}
+          winnerLabel={getParticipantLabel(dialogState.winner, matchMode)}
+          reason={dialogState.reason}
+          onClose={closeDialog}
+        />
       ) : null}
     </>
   );

@@ -1,15 +1,16 @@
 import { useRef } from 'react';
-import { playerLabel, victoryReasonText } from '../../app/gameUi';
+import { victoryReasonText } from '../../app/gameUi';
 import { type Player, type VictoryReason } from '../../game/types';
 import { ModalDialog } from './ModalDialog';
 
 interface GameResultDialogProps {
   winner: Player;
+  winnerLabel: string;
   reason: VictoryReason | null;
   onClose: () => void;
 }
 
-export function GameResultDialog({ winner, reason, onClose }: GameResultDialogProps) {
+export function GameResultDialog({ winner, winnerLabel, reason, onClose }: GameResultDialogProps) {
   const closeButtonRef = useRef<HTMLButtonElement>(null);
 
   return (
@@ -26,8 +27,10 @@ export function GameResultDialog({ winner, reason, onClose }: GameResultDialogPr
       }
     >
       <div className="result-block">
-        <strong className="result-winner">{playerLabel(winner)} の勝ち</strong>
-        <p className="modal-lead">決着理由: {victoryReasonText(reason)}</p>
+        <strong className="result-winner" data-winner={winner}>
+          {winnerLabel} の勝ち
+        </strong>
+        <p className="modal-lead">勝利条件: {victoryReasonText(reason)}</p>
       </div>
     </ModalDialog>
   );
