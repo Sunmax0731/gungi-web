@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import { Canvas, useFrame } from '@react-three/fiber';
+import { Canvas } from '@react-three/fiber';
 import { OrbitControls, Text } from '@react-three/drei';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { compareCoords, getStack, listCoords } from '../game/board';
@@ -33,7 +33,7 @@ interface AnimatedPieceState {
 
 interface AnimatedPieceProps {
   animation: AnimatedPieceState;
-  onComplete: (key: string) => void;
+  progress: number;
 }
 
 function boardToWorld(coord: Coord): [number, number, number] {
@@ -127,39 +127,17 @@ function easeOutCubic(value: number): number {
   return 1 - Math.pow(1 - value, 3);
 }
 
-function AnimatedPiece({ animation, onComplete }: AnimatedPieceProps) {
-  const groupRef = useRef<THREE.Group>(null);
-  const completedRef = useRef(false);
-
-  useEffect(() => {
-    completedRef.current = false;
-  }, [animation.key]);
-
-  useFrame(() => {
-    const group = groupRef.current;
-    if (!group) {
-      return;
-    }
-
-    const rawProgress = (performance.now() - animation.startedAt) / animation.durationMs;
-    const progress = THREE.MathUtils.clamp(rawProgress, 0, 1);
-    const eased = easeOutCubic(progress);
-    const arc = Math.sin(Math.PI * progress) * animation.lift;
-
-    group.position.set(
-      THREE.MathUtils.lerp(animation.from[0], animation.to[0], eased),
-      THREE.MathUtils.lerp(animation.from[1], animation.to[1], eased) + arc,
-      THREE.MathUtils.lerp(animation.from[2], animation.to[2], eased),
-    );
-
-    if (progress >= 1 && !completedRef.current) {
-      completedRef.current = true;
-      onComplete(animation.key);
-    }
-  });
+function AnimatedPiece({ animation, progress }: AnimatedPieceProps) {
+  const eased = easeOutCubic(progress);
+  const arc = Math.sin(Math.PI * progress) * animation.lift;
+  const position: [number, number, number] = [
+    THREE.MathUtils.lerp(animation.from[0], animation.to[0], eased),
+    THREE.MathUtils.lerp(animation.from[1], animation.to[1], eased) + arc,
+    THREE.MathUtils.lerp(animation.from[2], animation.to[2], eased),
+  ];
 
   return (
-    <group ref={groupRef} position={animation.from}>
+    <group position={position}>
       <PieceModel3D owner={animation.owner} kind={animation.kind} />
     </group>
   );
@@ -173,6 +151,7 @@ export function BoardScene({
 }: BoardSceneProps) {
   const previousStateRef = useRef<GameState | null>(null);
   const [animation, setAnimation] = useState<AnimatedPieceState | null>(null);
+  const [animationNow, setAnimationNow] = useState(() => performance.now());
 
   useEffect(() => {
     const previousState = previousStateRef.current;
@@ -181,9 +160,38 @@ export function BoardScene({
       return;
     }
 
-    setAnimation(createPieceAnimation(previousState, state));
+    const nextAnimation = createPieceAnimation(previousState, state);
+    setAnimation(nextAnimation);
     previousStateRef.current = state;
   }, [state]);
+
+  useEffect(() => {
+    if (!animation) {
+      return;
+    }
+
+    let frameId = 0;
+
+    const tick = () => {
+      const now = performance.now();
+      setAnimationNow(now);
+      const rawProgress = (now - animation.startedAt) / animation.durationMs;
+      const nextProgress = THREE.MathUtils.clamp(rawProgress, 0, 1);
+
+      if (nextProgress >= 1) {
+        setAnimation((current) => (current?.key === animation.key ? null : current));
+        return;
+      }
+
+      frameId = window.requestAnimationFrame(tick);
+    };
+
+    frameId = window.requestAnimationFrame(tick);
+
+    return () => {
+      window.cancelAnimationFrame(frameId);
+    };
+  }, [animation]);
 
   const moveMarkers = useMemo(() => {
     const map = new Map<string, GameMove['type']>();
@@ -201,6 +209,10 @@ export function BoardScene({
 
     return map;
   }, [highlightedMoves]);
+
+  const animationProgress = animation
+    ? THREE.MathUtils.clamp((animationNow - animation.startedAt) / animation.durationMs, 0, 1)
+    : 1;
 
   return (
     <div className="board-canvas">
@@ -299,13 +311,7 @@ export function BoardScene({
         })}
 
         {animation ? (
-          <AnimatedPiece
-            key={animation.key}
-            animation={animation}
-            onComplete={(key) => {
-              setAnimation((current) => (current?.key === key ? null : current));
-            }}
-          />
+          <AnimatedPiece key={animation.key} animation={animation} progress={animationProgress} />
         ) : null}
 
         {Array.from({ length: 9 }, (_, index) => {
