@@ -194,7 +194,7 @@ function App() {
   const [activeRuleGuideId, setActiveRuleGuideId] = useState<RuleGuideId>(() =>
     getDefaultRuleGuideId(initialGame.rulesetId),
   );
-  const [boardCameraMode, setBoardCameraMode] = useState<BoardCameraMode>('free');
+  const boardCameraMode: BoardCameraMode = 'free';
   const [boardRenderQuality, setBoardRenderQuality] = useState<BoardRenderQuality>('quality');
   const [hintEnabled, setHintEnabled] = useState(false);
   const [saveExportText, setSaveExportText] = useState('');
@@ -693,180 +693,162 @@ function App() {
 
             <div className="settings-toolbar">
               <div className="settings-cluster settings-cluster-primary">
-                <label className="control-group settings-field">
-                  <span>新規対局のルール</span>
-                  <select
-                    data-testid="pending-ruleset"
-                    value={session.pendingRulesetId}
-                    onChange={(event) => session.setPendingRulesetId(event.target.value as typeof session.pendingRulesetId)}
-                  >
-                    <option value="beginner">初級編</option>
-                    <option value="advanced">上級編</option>
-                  </select>
-                </label>
-
-                {session.pendingRulesetId === 'advanced' ? (
+                <div className="settings-cluster-row">
                   <label className="control-group settings-field">
-                    <span>開始時の配置補助</span>
+                    <span>新規対局のルール</span>
                     <select
-                      value={session.setupTemplateId}
-                      onChange={(event) => session.setSetupTemplateId(event.target.value as 'manual' | 'recommended')}
+                      data-testid="pending-ruleset"
+                      value={session.pendingRulesetId}
+                      onChange={(event) => session.setPendingRulesetId(event.target.value as typeof session.pendingRulesetId)}
                     >
-                      <option value="manual">手動配置</option>
-                      <option value="recommended">おすすめ配置</option>
+                      <option value="beginner">初級編</option>
+                      <option value="advanced">上級編</option>
                     </select>
                   </label>
-                ) : null}
 
-                <label className="control-group settings-field">
-                  <span>対人戦の CPU 難易度</span>
-                  <select value={session.cpuLevel} onChange={(event) => session.setCpuLevel(event.target.value as typeof session.cpuLevel)}>
-                    <option value="easy">初級</option>
-                    <option value="normal">標準</option>
-                    <option value="hard">上級</option>
-                  </select>
-                </label>
+                  {session.pendingRulesetId === 'advanced' ? (
+                    <label className="control-group settings-field">
+                      <span>開始時の配置補助</span>
+                      <select
+                        value={session.setupTemplateId}
+                        onChange={(event) => session.setSetupTemplateId(event.target.value as 'manual' | 'recommended')}
+                      >
+                        <option value="manual">手動配置</option>
+                        <option value="recommended">おすすめ配置</option>
+                      </select>
+                    </label>
+                  ) : null}
 
-                <label className="control-group settings-field">
-                  <span>3D カメラ</span>
-                  <select
-                    value={boardCameraMode}
-                    onChange={(event) => setBoardCameraMode(event.target.value as BoardCameraMode)}
-                  >
-                    <option value="free">自由カメラ</option>
-                    <option value="fixed">固定カメラ</option>
-                  </select>
-                </label>
+                  <label className="control-group settings-field">
+                    <span>対人戦の CPU 難易度</span>
+                    <select value={session.cpuLevel} onChange={(event) => session.setCpuLevel(event.target.value as typeof session.cpuLevel)}>
+                      <option value="easy">初級</option>
+                      <option value="normal">標準</option>
+                      <option value="hard">上級</option>
+                    </select>
+                  </label>
 
-                <label className="control-group settings-field">
-                  <span>描画品質</span>
-                  <select
-                    value={boardRenderQuality}
-                    onChange={(event) => setBoardRenderQuality(event.target.value as BoardRenderQuality)}
-                  >
-                    <option value="quality">高品質</option>
-                    <option value="lite">軽量</option>
-                  </select>
-                </label>
+                  <label className="control-group settings-field">
+                    <span>描画品質</span>
+                    <select
+                      value={boardRenderQuality}
+                      onChange={(event) => setBoardRenderQuality(event.target.value as BoardRenderQuality)}
+                    >
+                      <option value="quality">高品質</option>
+                      <option value="lite">軽量</option>
+                    </select>
+                  </label>
 
-                <label className="control-group settings-field">
-                  <span>解析ヒント</span>
-                  <select
-                    data-testid="hint-mode"
-                    value={hintEnabled ? 'on' : 'off'}
-                    onChange={(event) => setHintEnabled(event.target.value === 'on')}
-                  >
-                    <option value="off">オフ</option>
-                    <option value="on">オン</option>
-                  </select>
-                </label>
-
-                <label className="control-group settings-field">
-                  <span>自動対局 先手CPU</span>
-                  <select
-                    value={session.autoMatchCpuLevels.south}
-                    onChange={(event) =>
-                      session.setAutoMatchCpuLevels((current) => ({
-                        ...current,
-                        south: event.target.value as typeof current.south,
-                      }))
-                    }
-                  >
-                    <option value="easy">初級</option>
-                    <option value="normal">標準</option>
-                    <option value="hard">上級</option>
-                  </select>
-                </label>
-
-                <label className="control-group settings-field">
-                  <span>自動対局 後手CPU</span>
-                  <select
-                    value={session.autoMatchCpuLevels.north}
-                    onChange={(event) =>
-                      session.setAutoMatchCpuLevels((current) => ({
-                        ...current,
-                        north: event.target.value as typeof current.north,
-                      }))
-                    }
-                  >
-                    <option value="easy">初級</option>
-                    <option value="normal">標準</option>
-                    <option value="hard">上級</option>
-                  </select>
-                </label>
-
-                <button
-                  type="button"
-                  className="settings-button"
-                  data-testid="start-auto-match"
-                  onClick={() => dialog.openConfirmDialog('auto-match')}
-                >
-                  自動対局
-                </button>
-                <button
-                  type="button"
-                  className="settings-button pause-button"
-                  data-testid="toggle-auto-match-paused"
-                  disabled={!session.autoMatch || !!session.game.winner}
-                  onClick={session.toggleAutoMatchPaused}
-                >
-                  {session.autoMatchPaused ? '再開' : '一時停止'}
-                </button>
-                {replay.isReplaying ? (
-                  <div className="replay-controls" data-testid="replay-controls">
+                  {session.game.phase === 'setup' ? (
                     <button
                       type="button"
-                      className="settings-button secondary replay-control-button"
-                      data-testid="replay-jump-start"
-                      onClick={replay.jumpToStart}
+                      className="settings-button commit-button"
+                      disabled={!canReady || session.autoMatch || session.game.turn !== HUMAN_PLAYER || !!session.game.winner || cpu.thinking}
+                      onClick={() => dialog.openConfirmDialog('ready')}
                     >
-                      先頭
+                      配置完了
                     </button>
+                  ) : null}
+                  {canApplyRecommendedSetup ? (
                     <button
                       type="button"
-                      className="settings-button secondary replay-control-button"
-                      data-testid="replay-step-backward"
-                      onClick={replay.stepBackward}
+                      className="settings-button secondary"
+                      onClick={session.applyRecommendedSetup}
                     >
-                      前手
+                      おすすめ配置を反映
                     </button>
-                    <button
-                      type="button"
-                      className="settings-button secondary replay-control-button"
-                      data-testid="replay-step-forward"
-                      onClick={replay.stepForward}
+                  ) : null}
+                </div>
+
+                <div className="settings-cluster-row settings-cluster-row-emphasis">
+                  <label className="control-group settings-field">
+                    <span>自動対局 先手CPU</span>
+                    <select
+                      value={session.autoMatchCpuLevels.south}
+                      onChange={(event) =>
+                        session.setAutoMatchCpuLevels((current) => ({
+                          ...current,
+                          south: event.target.value as typeof current.south,
+                        }))
+                      }
                     >
-                      次手
-                    </button>
-                    <button
-                      type="button"
-                      className="settings-button secondary replay-control-button"
-                      data-testid="replay-jump-latest"
-                      onClick={replay.jumpToLatest}
+                      <option value="easy">初級</option>
+                      <option value="normal">標準</option>
+                      <option value="hard">上級</option>
+                    </select>
+                  </label>
+
+                  <label className="control-group settings-field">
+                    <span>自動対局 後手CPU</span>
+                    <select
+                      value={session.autoMatchCpuLevels.north}
+                      onChange={(event) =>
+                        session.setAutoMatchCpuLevels((current) => ({
+                          ...current,
+                          north: event.target.value as typeof current.north,
+                        }))
+                      }
                     >
-                      最新
-                    </button>
-                  </div>
-                ) : null}
-                {session.game.phase === 'setup' ? (
+                      <option value="easy">初級</option>
+                      <option value="normal">標準</option>
+                      <option value="hard">上級</option>
+                    </select>
+                  </label>
+
                   <button
                     type="button"
-                    className="settings-button commit-button"
-                    disabled={!canReady || session.autoMatch || session.game.turn !== HUMAN_PLAYER || !!session.game.winner || cpu.thinking}
-                    onClick={() => dialog.openConfirmDialog('ready')}
+                    className="settings-button"
+                    data-testid="start-auto-match"
+                    onClick={() => dialog.openConfirmDialog('auto-match')}
                   >
-                    配置完了
+                    自動対局
                   </button>
-                ) : null}
-                {canApplyRecommendedSetup ? (
                   <button
                     type="button"
-                    className="settings-button secondary"
-                    onClick={session.applyRecommendedSetup}
+                    className="settings-button pause-button"
+                    data-testid="toggle-auto-match-paused"
+                    disabled={!session.autoMatch || !!session.game.winner}
+                    onClick={session.toggleAutoMatchPaused}
                   >
-                    おすすめ配置を反映
+                    {session.autoMatchPaused ? '再開' : '一時停止'}
                   </button>
-                ) : null}
+                  {replay.isReplaying ? (
+                    <div className="replay-controls" data-testid="replay-controls">
+                      <button
+                        type="button"
+                        className="settings-button secondary replay-control-button"
+                        data-testid="replay-jump-start"
+                        onClick={replay.jumpToStart}
+                      >
+                        先頭
+                      </button>
+                      <button
+                        type="button"
+                        className="settings-button secondary replay-control-button"
+                        data-testid="replay-step-backward"
+                        onClick={replay.stepBackward}
+                      >
+                        前手
+                      </button>
+                      <button
+                        type="button"
+                        className="settings-button secondary replay-control-button"
+                        data-testid="replay-step-forward"
+                        onClick={replay.stepForward}
+                      >
+                        次手
+                      </button>
+                      <button
+                        type="button"
+                        className="settings-button secondary replay-control-button"
+                        data-testid="replay-jump-latest"
+                        onClick={replay.jumpToLatest}
+                      >
+                        最新
+                      </button>
+                    </div>
+                  ) : null}
+                </div>
               </div>
 
               <div className="settings-cluster settings-cluster-danger">

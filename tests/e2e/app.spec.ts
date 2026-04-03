@@ -51,7 +51,7 @@ test('runs advanced auto-match, reaches battle, and restores from saved state', 
 test('supports hint display, save-slot restore, and replay controls on the main screen', async ({ page }) => {
   await page.goto('/');
 
-  await page.getByTestId('hint-mode').selectOption('on');
+  await page.getByTestId('toggle-hint').click();
   await expect(page.getByTestId('hint-text')).toBeVisible({ timeout: 60_000 });
   await expect(page.getByTestId('replay-controls')).toHaveCount(0);
 

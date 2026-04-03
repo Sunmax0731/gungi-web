@@ -412,6 +412,11 @@ select:disabled,
   font-size: 0.78rem;
 }
 
+.piece-insight-list .modal-list {
+  font-size: 0.74rem;
+  line-height: 1.32;
+}
+
 .movement-preview {
   display: grid;
   gap: 0.48rem;
@@ -936,6 +941,9 @@ select:hover,
 }
 
 .settings-cluster-primary {
+  display: grid;
+  width: 100%;
+  gap: 0.42rem;
   background: rgba(44, 34, 26, 0.9);
   box-shadow: inset 0 0 0 1px rgba(141, 109, 65, 0.18);
 }
@@ -953,6 +961,17 @@ select:hover,
   flex: 0 0 auto;
 }
 
+.settings-cluster-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: end;
+  gap: 0.42rem;
+}
+
+.settings-cluster-row-emphasis {
+  padding-top: 0.08rem;
+}
+
 .replay-controls {
   display: flex;
   flex-wrap: wrap;
@@ -967,6 +986,11 @@ select:hover,
   flex: 0 0 188px;
   max-width: 188px;
   min-width: 0;
+}
+
+.settings-cluster-row .settings-button,
+.settings-cluster-row .replay-controls {
+  align-self: end;
 }
 
 .settings-cluster-primary select {
@@ -1462,7 +1486,13 @@ select:hover,
     flex-basis: 100%;
   }
 
+  .settings-cluster-row {
+    flex-direction: column;
+    width: 100%;
+  }
+
   .replay-controls {
+    flex-direction: column;
     width: 100%;
   }
 
