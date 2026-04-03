@@ -8,7 +8,7 @@ export type SetupTemplateId = 'manual' | 'recommended';
 
 export type VictoryReason = 'capture' | 'checkmate' | 'resign';
 
-export type CpuLevel = 'easy' | 'normal' | 'hard';
+export type CpuLevel = 'easy' | 'normal' | 'hard' | 'komugi';
 
 export type GamePhase = 'setup' | 'battle';
 

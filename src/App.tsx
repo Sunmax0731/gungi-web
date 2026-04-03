@@ -823,6 +823,7 @@ function App() {
                       <option value="easy">初級</option>
                       <option value="normal">標準</option>
                       <option value="hard">上級</option>
+                      <option value="komugi">コムギ</option>
                     </select>
                   </label>
 
@@ -873,6 +874,7 @@ function App() {
                       <option value="easy">初級</option>
                       <option value="normal">標準</option>
                       <option value="hard">上級</option>
+                      <option value="komugi">コムギ</option>
                     </select>
                   </label>
 
@@ -890,6 +892,7 @@ function App() {
                       <option value="easy">初級</option>
                       <option value="normal">標準</option>
                       <option value="hard">上級</option>
+                      <option value="komugi">コムギ</option>
                     </select>
                   </label>
 

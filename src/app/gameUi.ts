@@ -163,7 +163,7 @@ export const RULE_GUIDES: Record<RuleGuideId, RuleGuide> = {
         title: 'CPU と観戦',
         items: [
           '新しい対局だけでなく、自動対局でも上級編を選択できます。',
-          'CPU 難度は 初級 / 標準 / 上級 の3段階です。',
+          'CPU 難度は 初級 / 標準 / 上級 / コムギ の4段階です。',
           '自動対局中は盤面上に CPU の思考ログをオーバーレイ表示します。',
         ],
       },
@@ -244,6 +244,9 @@ export function formatClockDuration(elapsedMs: number): string {
 export function cpuLevelText(level: CpuLevel): string {
   if (level === 'easy') {
     return '初級';
+  }
+  if (level === 'komugi') {
+    return 'コムギ';
   }
   if (level === 'hard') {
     return '上級';

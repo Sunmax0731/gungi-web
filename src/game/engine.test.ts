@@ -388,6 +388,22 @@ describe('gungi engine', () => {
     expect(legalMoves).toContain(JSON.stringify(cpuMove));
   });
 
+  it('returns a legal move from the komugi CPU evaluator during battle', { timeout: 15_000 }, () => {
+    const state = createCustomGame('advanced');
+    placePiece(state, 'south', 'marshal', { x: 4, y: 8 }, 's0');
+    placePiece(state, 'north', 'marshal', { x: 4, y: 0 }, 'n0');
+    placePiece(state, 'south', 'general', { x: 4, y: 6 }, 's1');
+    placePiece(state, 'south', 'soldier', { x: 3, y: 6 }, 's2');
+    placePiece(state, 'north', 'minor', { x: 3, y: 2 }, 'n1');
+    placePiece(state, 'north', 'soldier', { x: 4, y: 2 }, 'n2');
+
+    const legalMoves = generateLegalMoves(state).map((move) => JSON.stringify(move));
+    const cpuMove = computeBestMove(state, 'komugi');
+
+    expect(cpuMove).not.toBeNull();
+    expect(legalMoves).toContain(JSON.stringify(cpuMove));
+  });
+
   it('supports resignation as a terminal move', () => {
     const state = createInitialGame('beginner');
     const nextState = applyMove(state, createResignMove('south'));

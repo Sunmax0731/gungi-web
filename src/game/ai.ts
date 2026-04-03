@@ -94,6 +94,9 @@ function cpuLevelLabel(level: CpuLevel): string {
   if (level === 'easy') {
     return '初級';
   }
+  if (level === 'komugi') {
+    return 'コムギ';
+  }
   if (level === 'hard') {
     return '上級';
   }
@@ -537,7 +540,7 @@ function pickSetupMove(
   reportThought(onProgress, 'setup', '配置候補を整理中', `候補 ${legalMoves.length} 手`);
 
   const placedPieces = countPlacedPieces(state, player);
-  const targetCount = level === 'easy' ? 10 : level === 'normal' ? 13 : 16;
+  const targetCount = level === 'easy' ? 10 : level === 'normal' ? 13 : level === 'hard' ? 16 : 16;
   const preferred = ruleset.setup.kind === 'free' ? ruleset.setup.preferredPlacements : [];
   const deployMoves = legalMoves.filter((move): move is Extract<GameMove, { type: 'deploy' }> => move.type === 'deploy');
 
@@ -583,8 +586,26 @@ function pickSetupMove(
   return chosen;
 }
 
-function buildHardSearchOptions(state: GameState, legalMoves: GameMove[]): SearchOptions & { timeBudgetMs: number } {
+function buildSearchOptions(
+  level: Extract<CpuLevel, 'hard' | 'komugi'>,
+  state: GameState,
+  legalMoves: GameMove[],
+): SearchOptions & { timeBudgetMs: number } {
   const pieceCount = state.board.flat().length;
+
+  if (level === 'komugi') {
+    if (legalMoves.length > 30) {
+      return { depth: 4, beamWidth: 12, timeBudgetMs: 2_600 };
+    }
+    if (legalMoves.length > 22) {
+      return { depth: 5, beamWidth: 14, timeBudgetMs: 3_250 };
+    }
+    if (pieceCount <= 14) {
+      return { depth: 6, beamWidth: 18, timeBudgetMs: 4_300 };
+    }
+
+    return { depth: 5, beamWidth: 16, timeBudgetMs: 3_800 };
+  }
 
   if (legalMoves.length > 30) {
     return { depth: 3, beamWidth: 8, timeBudgetMs: 520 };
@@ -649,7 +670,8 @@ function searchRootDepth(
   };
 }
 
-function pickHardMove(
+function pickSearchMove(
+  level: Extract<CpuLevel, 'hard' | 'komugi'>,
   state: GameState,
   context: SearchContext,
   onProgress?: CpuThoughtReporter,
@@ -660,16 +682,16 @@ function pickHardMove(
     return null;
   }
 
-  const hardOptions = buildHardSearchOptions(state, legalMoves);
+  const searchOptions = buildSearchOptions(level, state, legalMoves);
   reportThought(onProgress, 'legal', '合法手を収集中', `${legalMoves.length} 手を確認`);
   reportThought(
     onProgress,
     'order',
     '候補手を優先度順に並び替え',
-    `深さ上限 ${hardOptions.depth} / ビーム幅 ${hardOptions.beamWidth} / 制限 ${hardOptions.timeBudgetMs}ms`,
+    `深さ上限 ${searchOptions.depth} / ビーム幅 ${searchOptions.beamWidth} / 制限 ${searchOptions.timeBudgetMs}ms`,
   );
 
-  const searchContext = createSearchContext(hardOptions.timeBudgetMs);
+  const searchContext = createSearchContext(searchOptions.timeBudgetMs);
   searchContext.evaluations = context.evaluations;
   searchContext.legalMoves = context.legalMoves;
   searchContext.transposition = context.transposition;
@@ -678,17 +700,17 @@ function pickHardMove(
   let bestScore = bestMove ? evaluateState(applyMove(state, bestMove, { validate: false }), player, context) : 0;
   let completedDepth = 0;
 
-  for (let depth = 1; depth <= hardOptions.depth; depth += 1) {
+  for (let depth = 1; depth <= searchOptions.depth; depth += 1) {
     reportThought(
       onProgress,
       'depth',
       `深さ ${depth} の探索を開始`,
       `現在の優先候補 ${bestMove ? formatMoveSummary(bestMove) : '未確定'}`,
-      depth / hardOptions.depth,
+      depth / searchOptions.depth,
     );
 
     try {
-      const result = searchRootDepth(state, player, legalMoves, depth, hardOptions, searchContext, onProgress);
+      const result = searchRootDepth(state, player, legalMoves, depth, searchOptions, searchContext, onProgress);
       if (result.move) {
         bestMove = result.move;
         bestScore = result.score;
@@ -770,5 +792,5 @@ export function computeBestMove(
     return move;
   }
 
-  return pickHardMove(state, context, onProgress);
+  return pickSearchMove(level, state, context, onProgress);
 }
