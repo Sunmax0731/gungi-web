@@ -20,6 +20,7 @@ import { getRuleset } from './game/rulesets';
 import { createInitialGame } from './game/setup';
 import { loadSavedGame } from './game/storage';
 import { type GameMove, type Player } from './game/types';
+import { useAutoMatchLogUpload } from './hooks/useAutoMatchLogUpload';
 import { useCpuTurn } from './hooks/useCpuTurn';
 import { type ConfirmActionId, useDialogState } from './hooks/useDialogState';
 import { useFirstPlayGuide } from './hooks/useFirstPlayGuide';
@@ -46,6 +47,17 @@ function formatThoughtDuration(elapsedMs: number): string {
   }
 
   return `${Math.round(elapsedMs / 1_000)}秒`;
+}
+
+function formatUploadTimestamp(value: string | null): string {
+  if (!value) {
+    return '未保存';
+  }
+
+  return new Intl.DateTimeFormat('ja-JP', {
+    dateStyle: 'short',
+    timeStyle: 'medium',
+  }).format(new Date(value));
 }
 
 function getParticipantLabel(player: Player, matchMode: 'human-vs-cpu' | 'cpu-vs-cpu'): string {
@@ -203,6 +215,11 @@ function App() {
   const cpuService = useMemo(() => createCpuService(), []);
 
   const session = useMatchSession({ initialGame });
+  const autoMatchLog = useAutoMatchLogUpload({
+    autoMatch: session.autoMatch,
+    cpuLevels: session.autoMatchCpuLevels,
+    game: session.game,
+  });
   const dialog = useDialogState({
     updatedAt: session.game.updatedAt,
     winner: session.game.winner,
@@ -272,6 +289,66 @@ function App() {
   const displayMatchElapsedLabel = formatClockDuration(
     replay.isReplaying ? replay.activeSnapshot.matchElapsedMs : session.matchElapsedMs,
   );
+  const autoMatchLogStatus = useMemo(() => {
+    if (!session.autoMatch) {
+      return null;
+    }
+
+    if (!autoMatchLog.endpointConfigured) {
+      return {
+        detail: '保存先が未設定です。必要なら VITE_AUTOMATCH_LOG_ENDPOINT を設定してください。',
+        title: '自動対局ログ保存',
+        tone: 'setup' as const,
+      };
+    }
+
+    if (!session.game.winner) {
+      return {
+        detail: '終局後にサーバへ自動保存します。',
+        title: '自動対局ログ保存',
+        tone: 'setup' as const,
+      };
+    }
+
+    if (autoMatchLog.uploadState === 'uploading') {
+      return {
+        detail: '終局ログをサーバへ保存しています。',
+        title: '自動対局ログ保存',
+        tone: 'thinking' as const,
+      };
+    }
+
+    if (autoMatchLog.uploadState === 'success') {
+      return {
+        detail: `保存済み: ${formatUploadTimestamp(autoMatchLog.savedAt)} / 保存ID ${autoMatchLog.remoteId ?? 'match-log'}`,
+        title: '自動対局ログ保存',
+        tone: 'active' as const,
+      };
+    }
+
+    if (autoMatchLog.uploadState === 'error') {
+      return {
+        detail: autoMatchLog.errorMessage ?? 'ログ保存に失敗しました。',
+        title: '自動対局ログ保存',
+        tone: 'error' as const,
+      };
+    }
+
+    return {
+      detail: '終局後にサーバへ自動保存します。',
+      title: '自動対局ログ保存',
+      tone: 'setup' as const,
+    };
+  }, [
+    autoMatchLog.endpointConfigured,
+    autoMatchLog.errorMessage,
+    autoMatchLog.remoteId,
+    autoMatchLog.savedAt,
+    autoMatchLog.uploadState,
+    session.autoMatch,
+    session.game.winner,
+  ]);
+  const autoMatchResultStatusLabel = autoMatchLogStatus?.detail ?? null;
   const southLabel = getParticipantLabel('south', session.matchMode);
   const northLabel = getParticipantLabel('north', session.matchMode);
   const cpuThoughtTitle = `${getParticipantLabel(cpu.cpuThoughtPlayer ?? session.game.turn, session.matchMode)}の思考ログ`;
@@ -610,6 +687,27 @@ function App() {
                 <strong>{getMarshalStatus(!!northMarshal, northThreatened, displayState.phase === 'setup', displayState.setupReady.north)}</strong>
               </div>
             </div>
+
+            {autoMatchLogStatus ? (
+              <div className="status-subsection">
+                <div className={`status-banner ${autoMatchLogStatus.tone}`}>
+                  <strong>{autoMatchLogStatus.title}</strong>
+                  <span data-testid="auto-match-log-status">{autoMatchLogStatus.detail}</span>
+                </div>
+                {autoMatchLog.uploadState === 'error' && autoMatchLog.endpointConfigured ? (
+                  <div className="section-actions">
+                    <button
+                      type="button"
+                      className="rule-button secondary"
+                      data-testid="retry-auto-match-log"
+                      onClick={autoMatchLog.retryUpload}
+                    >
+                      再送信
+                    </button>
+                  </div>
+                ) : null}
+              </div>
+            ) : null}
 
             {session.errorMessage ? <p className="error-text">{session.errorMessage}</p> : null}
           </section>
@@ -1018,7 +1116,13 @@ function App() {
           winnerLabel={getParticipantLabel(dialog.dialogState.winner, session.matchMode)}
           reason={dialog.dialogState.reason}
           elapsedLabel={formatClockDuration(session.matchElapsedMs)}
+          logSaveStatusLabel={session.autoMatch ? autoMatchResultStatusLabel : null}
           onClose={dialog.closeDialog}
+          onRetryLogSave={
+            session.autoMatch && autoMatchLog.uploadState === 'error' && autoMatchLog.endpointConfigured
+              ? autoMatchLog.retryUpload
+              : null
+          }
         />
       ) : null}
     </>

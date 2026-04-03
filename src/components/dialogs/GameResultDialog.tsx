@@ -8,10 +8,20 @@ interface GameResultDialogProps {
   winnerLabel: string;
   reason: VictoryReason | null;
   elapsedLabel: string;
+  logSaveStatusLabel?: string | null;
   onClose: () => void;
+  onRetryLogSave?: (() => void) | null;
 }
 
-export function GameResultDialog({ winner, winnerLabel, reason, elapsedLabel, onClose }: GameResultDialogProps) {
+export function GameResultDialog({
+  winner,
+  winnerLabel,
+  reason,
+  elapsedLabel,
+  logSaveStatusLabel = null,
+  onClose,
+  onRetryLogSave = null,
+}: GameResultDialogProps) {
   const closeButtonRef = useRef<HTMLButtonElement>(null);
 
   return (
@@ -33,6 +43,14 @@ export function GameResultDialog({ winner, winnerLabel, reason, elapsedLabel, on
         </strong>
         <p className="modal-lead">勝因: {victoryReasonText(reason)}</p>
         <p className="modal-lead">対局時間: {elapsedLabel}</p>
+        {logSaveStatusLabel ? <p className="modal-lead">ログ保存: {logSaveStatusLabel}</p> : null}
+        {onRetryLogSave ? (
+          <div className="modal-action-row">
+            <button type="button" className="settings-button secondary" onClick={onRetryLogSave}>
+              ログ保存を再送信
+            </button>
+          </div>
+        ) : null}
       </div>
     </ModalDialog>
   );

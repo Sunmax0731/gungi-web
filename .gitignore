@@ -16,6 +16,7 @@ tmp/
 *.har
 test-results/
 playwright-report/
+server-data/
 
 # Editor directories and files
 .vscode/*

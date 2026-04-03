@@ -335,6 +335,11 @@ select:disabled,
   color: #3f2d00;
 }
 
+.status-banner.error {
+  background: var(--md-error-container);
+  color: var(--md-on-error-container);
+}
+
 .threat-grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -382,6 +387,11 @@ select:disabled,
 
 .status-meta-card strong {
   font-size: 0.9rem;
+}
+
+.status-subsection {
+  display: grid;
+  gap: 0.42rem;
 }
 
 .learning-card {

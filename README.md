@@ -1,13 +1,30 @@
 # Gungi Web
 
-Browser-based Gungi implementation built with React, TypeScript, Vite, and react-three-fiber.
+React + TypeScript + Vite based browser implementation of Gungi.
 
-## Development
+## Main features
+
+- Beginner / advanced rulesets
+- Human vs CPU and CPU vs CPU modes
+- Replay controls and match log review
+- Local autosave, manual save slots, export / import
+- Hint display backed by the same CPU search pipeline
+- Optional remote upload of completed auto-match logs
+
+## Local development
 
 ```bash
 npm install
 npm run dev
 ```
+
+If you want remote auto-match log uploads while developing, create `.env.local` from `.env.example` and run:
+
+```bash
+npm run logs:server
+```
+
+The local log server listens on `http://127.0.0.1:8787` by default.
 
 ## Quality checks
 
@@ -18,14 +35,19 @@ npm run build
 npm run test:e2e
 ```
 
-`test:e2e` launches Playwright against a local Vite server and covers the main UI flow, auto-match progression, and save/restore behavior.
+`test:e2e` launches Playwright against a local Vite server and covers the main UI flow, auto-match progression, replay controls, and save / restore behavior.
 
 ## Deployment flow
 
-This repository is the source of truth for the game code.
+This repository is the source of truth for application code.
 
-1. Build this repository with `npm run build`.
+1. Build with `npm run build`.
 2. Copy `dist` into `D:\\Claude\\docs\\gungi`.
-3. Commit and push the changes from `D:\\Claude\\docs` to publish `https://sunmax0731.github.io/gungi/`.
+3. Commit and push `D:\\Claude\\docs` to publish `https://sunmax0731.github.io/gungi/`.
 
-The published site is maintained in the separate Pages repository, so built assets should not be committed here.
+GitHub Pages only serves static files, so remote auto-match log saving requires a separate HTTP endpoint. The browser upload stays disabled unless `VITE_AUTOMATCH_LOG_ENDPOINT` is set at build time.
+
+## Reference
+
+- `guides/architecture.md`
+- `guides/auto-match-log-server.md`
