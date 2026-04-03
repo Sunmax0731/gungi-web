@@ -932,6 +932,16 @@ select:hover,
   flex: 0 0 auto;
 }
 
+.replay-controls {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.42rem;
+}
+
+.replay-control-button {
+  min-width: 84px;
+}
+
 .settings-cluster-primary .settings-field {
   flex: 0 0 188px;
   max-width: 188px;
@@ -1429,6 +1439,10 @@ select:hover,
 
   .settings-cluster-primary .settings-field {
     flex-basis: 100%;
+  }
+
+  .replay-controls {
+    width: 100%;
   }
 
   .hand-tray-grid {

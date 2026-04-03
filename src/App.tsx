@@ -20,7 +20,6 @@ import { getRuleset } from './game/rulesets';
 import { createInitialGame } from './game/setup';
 import { loadSavedGame } from './game/storage';
 import { type GameMove, type Player } from './game/types';
-import { BoardGrid } from './components/BoardGrid';
 import { useCpuTurn } from './hooks/useCpuTurn';
 import { type ConfirmActionId, useDialogState } from './hooks/useDialogState';
 import { useFirstPlayGuide } from './hooks/useFirstPlayGuide';
@@ -31,20 +30,11 @@ import { useSelectionState } from './hooks/useSelectionState';
 import { SaveManagerDialog } from './components/dialogs/SaveManagerDialog';
 
 const HUMAN_PLAYER: Player = 'south';
-type BoardViewMode = '3d' | '2d';
 type BoardCameraMode = 'free' | 'fixed';
 type BoardRenderQuality = 'quality' | 'lite';
 const BoardScene = lazy(() =>
   import('./components/BoardScene').then((module) => ({ default: module.BoardScene })),
 );
-
-function getDefaultBoardViewMode(): BoardViewMode {
-  if (typeof window !== 'undefined' && window.matchMedia('(max-width: 960px)').matches) {
-    return '2d';
-  }
-
-  return '3d';
-}
 
 function formatThoughtDuration(elapsedMs: number): string {
   if (elapsedMs < 1_000) {
@@ -204,7 +194,6 @@ function App() {
   const [activeRuleGuideId, setActiveRuleGuideId] = useState<RuleGuideId>(() =>
     getDefaultRuleGuideId(initialGame.rulesetId),
   );
-  const [boardViewMode, setBoardViewMode] = useState<BoardViewMode>(() => getDefaultBoardViewMode());
   const [boardCameraMode, setBoardCameraMode] = useState<BoardCameraMode>('free');
   const [boardRenderQuality, setBoardRenderQuality] = useState<BoardRenderQuality>('quality');
   const [hintEnabled, setHintEnabled] = useState(false);
@@ -653,25 +642,16 @@ function App() {
 
         <main className="board-panel">
           <section className="board-frame board-frame-plain">
-            {boardViewMode === '3d' ? (
-              <Suspense fallback={<div className="board-loading">3D盤面を読み込み中...</div>}>
-                <BoardScene
-                  cameraMode={boardCameraMode}
-                  renderQuality={boardRenderQuality}
-                  state={displayState}
-                  selectedSquare={replay.isReplaying ? null : selection.selectedSquare}
-                  highlightedMoves={replay.isReplaying ? [] : selection.selectedMoves}
-                  onSquareClick={replay.isReplaying ? () => undefined : selection.handleSquareClick}
-                />
-              </Suspense>
-            ) : (
-              <BoardGrid
+            <Suspense fallback={<div className="board-loading">3D盤面を読み込み中...</div>}>
+              <BoardScene
+                cameraMode={boardCameraMode}
+                renderQuality={boardRenderQuality}
                 state={displayState}
                 selectedSquare={replay.isReplaying ? null : selection.selectedSquare}
                 highlightedMoves={replay.isReplaying ? [] : selection.selectedMoves}
                 onSquareClick={replay.isReplaying ? () => undefined : selection.handleSquareClick}
               />
-            )}
+            </Suspense>
 
             {session.autoMatch && !replay.isReplaying && (cpu.cpuThoughts.length > 0 || session.autoMatchPaused) ? (
               <div className="board-overlay">
@@ -737,22 +717,9 @@ function App() {
                 </label>
 
                 <label className="control-group settings-field">
-                  <span>盤面表示</span>
-                  <select
-                    data-testid="board-view-mode"
-                    value={boardViewMode}
-                    onChange={(event) => setBoardViewMode(event.target.value as BoardViewMode)}
-                  >
-                    <option value="3d">3D盤面</option>
-                    <option value="2d">2D盤面</option>
-                  </select>
-                </label>
-
-                <label className="control-group settings-field">
                   <span>3D カメラ</span>
                   <select
                     value={boardCameraMode}
-                    disabled={boardViewMode !== '3d'}
                     onChange={(event) => setBoardCameraMode(event.target.value as BoardCameraMode)}
                   >
                     <option value="free">自由カメラ</option>
@@ -834,6 +801,42 @@ function App() {
                 >
                   {session.autoMatchPaused ? '再開' : '一時停止'}
                 </button>
+                {replay.isReplaying ? (
+                  <div className="replay-controls" data-testid="replay-controls">
+                    <button
+                      type="button"
+                      className="settings-button secondary replay-control-button"
+                      data-testid="replay-jump-start"
+                      onClick={replay.jumpToStart}
+                    >
+                      先頭
+                    </button>
+                    <button
+                      type="button"
+                      className="settings-button secondary replay-control-button"
+                      data-testid="replay-step-backward"
+                      onClick={replay.stepBackward}
+                    >
+                      前手
+                    </button>
+                    <button
+                      type="button"
+                      className="settings-button secondary replay-control-button"
+                      data-testid="replay-step-forward"
+                      onClick={replay.stepForward}
+                    >
+                      次手
+                    </button>
+                    <button
+                      type="button"
+                      className="settings-button secondary replay-control-button"
+                      data-testid="replay-jump-latest"
+                      onClick={replay.jumpToLatest}
+                    >
+                      最新
+                    </button>
+                  </div>
+                ) : null}
                 {session.game.phase === 'setup' ? (
                   <button
                     type="button"
@@ -929,7 +932,7 @@ function App() {
                   <span data-testid="hint-text">{getHintMoveLabel(hint.hintMove)}</span>
                 </div>
                 <p className="section-note">
-                  難易度 {cpuLevelText(session.cpuLevel)} 相当の読み筋です。2D盤面と合わせるとキーボード操作でも確認できます。
+                  難易度 {cpuLevelText(session.cpuLevel)} 相当の読み筋です。対局中の判断材料として使えます。
                 </p>
               </>
             )}
@@ -981,11 +984,10 @@ function App() {
           records={session.game.history}
           replaying={replay.isReplaying}
           onClose={dialog.closeDialog}
-          onJumpToLatest={replay.jumpToLatest}
-          onJumpToStart={replay.jumpToStart}
-          onSelectPly={replay.startReplayAt}
-          onStepBackward={replay.stepBackward}
-          onStepForward={replay.stepForward}
+          onSelectPly={(ply) => {
+            replay.startReplayAt(ply);
+            dialog.closeDialog();
+          }}
         />
       ) : null}
 

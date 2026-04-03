@@ -48,18 +48,12 @@ test('runs advanced auto-match, reaches battle, and restores from saved state', 
     .toBeGreaterThanOrEqual(beforeReload);
 });
 
-test('supports 2d board controls, hint display, and save-slot restore', async ({ page }) => {
+test('supports hint display, save-slot restore, and replay controls on the main screen', async ({ page }) => {
   await page.goto('/');
-
-  await page.getByTestId('board-view-mode').selectOption('2d');
-  await expect(page.getByTestId('board-grid')).toBeVisible();
-
-  await page.getByTestId('board-cell-4-8').focus();
-  await page.keyboard.press('ArrowLeft');
-  await expect(page.getByTestId('board-cell-3-8')).toBeFocused();
 
   await page.getByTestId('hint-mode').selectOption('on');
   await expect(page.getByTestId('hint-text')).toBeVisible({ timeout: 60_000 });
+  await expect(page.getByTestId('replay-controls')).toHaveCount(0);
 
   await page.getByTestId('open-save-manager').click();
   let saveDialog = page.getByRole('dialog', { name: '保存管理' });
@@ -74,11 +68,18 @@ test('supports 2d board controls, hint display, and save-slot restore', async ({
     .poll(async () => Number((await page.getByTestId('move-count').textContent()) ?? '0'))
     .toBeGreaterThan(0);
 
+  await page.getByTestId('open-match-log').click();
+  let logDialog = page.getByRole('dialog', { name: '対局ログ' });
+  await logDialog.getByRole('button', { name: /先手|後手/ }).first().click();
+
+  await expect(page.getByTestId('replay-controls')).toBeVisible();
+  await page.getByTestId('replay-jump-latest').click();
+  await expect(page.getByTestId('replay-controls')).toHaveCount(0);
+
   await page.getByTestId('open-save-manager').click();
   saveDialog = page.getByRole('dialog', { name: '保存管理' });
   await saveDialog.locator('.save-slot-card').first().getByRole('button', { name: '読み込む' }).click();
 
-  await expect(page.getByTestId('board-grid')).toBeVisible();
   await expect(page.getByTestId('match-phase')).toHaveText('対局中');
   await expect(page.getByTestId('move-count')).toHaveText('0');
 });

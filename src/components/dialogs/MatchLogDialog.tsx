@@ -6,11 +6,7 @@ import { ModalDialog } from './ModalDialog';
 interface MatchLogDialogProps {
   currentPly: number;
   onClose: () => void;
-  onJumpToLatest: () => void;
-  onJumpToStart: () => void;
   onSelectPly: (ply: number) => void;
-  onStepBackward: () => void;
-  onStepForward: () => void;
   records: MoveRecord[];
   replaying: boolean;
 }
@@ -18,11 +14,7 @@ interface MatchLogDialogProps {
 export function MatchLogDialog({
   currentPly,
   onClose,
-  onJumpToLatest,
-  onJumpToStart,
   onSelectPly,
-  onStepBackward,
-  onStepForward,
   records,
   replaying,
 }: MatchLogDialogProps) {
@@ -41,21 +33,7 @@ export function MatchLogDialog({
       }
     >
       <div className="modal-toolbar">
-        <strong>{replaying ? `解析表示: ${currentPly} 手目` : '最新局面を表示中'}</strong>
-        <div className="modal-toolbar-actions">
-          <button type="button" className="rule-button" onClick={onJumpToStart}>
-            先頭
-          </button>
-          <button type="button" className="rule-button" onClick={onStepBackward}>
-            前手
-          </button>
-          <button type="button" className="rule-button" onClick={onStepForward}>
-            次手
-          </button>
-          <button type="button" className="rule-button" onClick={onJumpToLatest}>
-            最新
-          </button>
-        </div>
+        <strong>{replaying ? `解析表示: ${currentPly} 手目` : '棋譜を選ぶとリプレイ表示に切り替わります'}</strong>
       </div>
 
       {records.length === 0 ? (
