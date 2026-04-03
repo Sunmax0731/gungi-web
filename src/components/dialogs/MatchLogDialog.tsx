@@ -31,9 +31,9 @@ export function MatchLogDialog({ records, onClose }: MatchLogDialogProps) {
             <li key={record.ply}>
               <span>{record.notation}</span>
               <span className="modal-log-meta">
-                <strong>{formatClockDuration(record.elapsedMs)}</strong>
+                <strong>所要時間 {formatClockDuration(record.elapsedMs)}</strong>
               </span>
-              {record.captured.length > 0 ? <strong>{record.captured.length}枚捕獲</strong> : null}
+              {record.captured.length > 0 ? <strong>{record.captured.length} 枚捕獲</strong> : null}
             </li>
           ))}
         </ol>

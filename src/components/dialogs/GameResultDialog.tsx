@@ -29,7 +29,7 @@ export function GameResultDialog({ winner, winnerLabel, reason, elapsedLabel, on
     >
       <div className="result-block">
         <strong className="result-winner" data-winner={winner}>
-          {winnerLabel}の勝ち
+          {winnerLabel}の勝利
         </strong>
         <p className="modal-lead">勝因: {victoryReasonText(reason)}</p>
         <p className="modal-lead">対局時間: {elapsedLabel}</p>

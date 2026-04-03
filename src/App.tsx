@@ -79,23 +79,23 @@ function appendCpuThought(thoughts: CpuThoughtEntry[], thought: CpuThought, elap
 
 function getParticipantLabel(player: Player, mode: MatchMode): string {
   if (mode === 'cpu-vs-cpu') {
-    return player === 'south' ? 'South CPU' : 'North CPU';
+    return player === 'south' ? '先手CPU' : '後手CPU';
   }
 
-  return player === HUMAN_PLAYER ? 'You' : 'CPU';
+  return player === HUMAN_PLAYER ? 'あなた' : 'CPU';
 }
 
 function getVictoryReasonLabel(reason: VictoryReason | null): string {
   if (reason === 'capture') {
-    return 'Marshal captured';
+    return '帥の撃破';
   }
   if (reason === 'checkmate') {
-    return 'Checkmate';
+    return '詰み';
   }
   if (reason === 'resign') {
-    return 'Resignation';
+    return '投了';
   }
-  return 'Game over';
+  return '対局終了';
 }
 
 function getMoveTypeLabel(move: GameMove): string {
@@ -158,21 +158,21 @@ function getSelectionSummary(
   selectedHandKind: PieceKind | null,
 ): string {
   if (selectedHandKind) {
-    return `Selected hand: ${getPieceDefinition(selectedHandKind).label}`;
+    return `選択中の持ち駒: ${getPieceDefinition(selectedHandKind).label}`;
   }
 
   if (selectedSquare && game.phase === 'battle') {
     const piece = getTopPiece(game.board, selectedSquare);
-    if (piece) {
-      return `Selected piece: ${getPieceDefinition(piece.kind).label}`;
-    }
+      if (piece) {
+      return `選択中の駒: ${getPieceDefinition(piece.kind).label}`;
+      }
   }
 
   if (game.phase === 'setup') {
-    return 'Choose a reserve piece, then click a setup square.';
+    return '持ち駒を選んで配置マスをクリックしてください。';
   }
 
-  return 'Choose your top piece or a reserve piece to see legal actions.';
+  return '盤上の駒か持ち駒を選ぶと、実行できる行動を確認できます。';
 }
 
 function App() {
@@ -259,38 +259,38 @@ function App() {
     if (game.winner) {
       return {
         tone: 'victory',
-        title: `${getParticipantLabel(game.winner, matchMode)} wins`,
-        detail: `Reason: ${getVictoryReasonLabel(game.victoryReason)}`,
+        title: `${getParticipantLabel(game.winner, matchMode)}の勝利`,
+        detail: `勝因: ${getVictoryReasonLabel(game.victoryReason)}`,
       };
     }
 
     if (autoMatchPaused) {
       return {
         tone: 'paused',
-        title: 'Auto match paused',
-        detail: `Resume to continue ${getParticipantLabel(game.turn, matchMode)}'s turn.`,
+        title: '自動対局を一時停止中',
+        detail: `再開すると ${getParticipantLabel(game.turn, matchMode)} の手番から続行します。`,
       };
     }
 
     if (thinking) {
       return {
         tone: 'thinking',
-        title: autoMatch ? 'Auto match running' : 'CPU thinking',
-        detail: `${getParticipantLabel(game.turn, matchMode)} is choosing a move.`,
+        title: autoMatch ? '自動対局中' : 'CPU 思考中',
+        detail: `${getParticipantLabel(game.turn, matchMode)} が着手を選んでいます。`,
       };
     }
 
     if (game.phase === 'setup') {
       return {
         tone: 'setup',
-        title: game.turn === HUMAN_PLAYER ? 'Setup phase' : `${getParticipantLabel(game.turn, matchMode)} setup`,
+        title: game.turn === HUMAN_PLAYER ? '配置フェーズ' : `${getParticipantLabel(game.turn, matchMode)} が配置中`,
         detail: selectionSummary,
       };
     }
 
     return {
       tone: 'active',
-      title: `${getParticipantLabel(game.turn, matchMode)} to move`,
+      title: `${getParticipantLabel(game.turn, matchMode)}の手番`,
       detail: selectionSummary,
     };
   }, [autoMatch, autoMatchPaused, game.phase, game.turn, game.victoryReason, game.winner, matchMode, selectionSummary, thinking]);
@@ -611,32 +611,32 @@ function App() {
       ? {
           'new-game': {
             title: 'Start a new game?',
-            message: 'Current board state will be lost. Saved data remains until you clear it.',
-            confirmLabel: 'Start new game',
+            message: '現在の盤面は破棄されます。保存データは削除するまで保持されます。',
+            confirmLabel: '新しい対局を開始',
             tone: 'danger' as const,
           },
           'auto-match': {
-            title: 'Start CPU vs CPU?',
-            message: 'A fresh auto match will begin with the selected ruleset and CPU settings.',
-            confirmLabel: 'Start auto match',
+            title: '自動対局を開始しますか？',
+            message: '選択中のルールと CPU 難易度で、新しい自動対局を開始します。',
+            confirmLabel: '自動対局を開始',
             tone: 'danger' as const,
           },
           'clear-save': {
-            title: 'Clear saved game?',
-            message: 'This removes the locally saved position from your browser.',
-            confirmLabel: 'Clear save',
+            title: '保存データを削除しますか？',
+            message: 'ブラウザに保存されている対局データを削除します。',
+            confirmLabel: '保存データを削除',
             tone: 'danger' as const,
           },
           ready: {
-            title: 'Finish setup?',
-            message: 'Once you confirm, setup ends for your side.',
-            confirmLabel: 'Ready',
+            title: '配置を完了しますか？',
+            message: '確定すると、あなた側の配置フェーズが終了します。',
+            confirmLabel: '配置完了',
             tone: 'default' as const,
           },
           resign: {
-            title: 'Resign the game?',
-            message: 'The opponent will immediately be declared the winner.',
-            confirmLabel: 'Resign',
+            title: '投了しますか？',
+            message: '相手の勝利として即座に対局が終了します。',
+            confirmLabel: '投了する',
             tone: 'danger' as const,
           },
         }[dialogState.action]
@@ -676,35 +676,35 @@ function App() {
       <div className="app-shell">
         <aside className="panel info-panel">
           <div className="panel-header">
-            <p className="eyebrow">Browser Gungi</p>
-            <h1>Gungi Web</h1>
+            <p className="eyebrow">Browser Game</p>
+            <h1>Gungi</h1>
           </div>
 
           <section className="card">
-            <h2>Match Info</h2>
+            <h2>対局情報</h2>
             <dl className="stats-grid">
               <div>
-                <dt>Rule</dt>
+                <dt>ルール</dt>
                 <dd>{ruleset.name}</dd>
               </div>
               <div>
-                <dt>Phase</dt>
-                <dd>{game.phase === 'setup' ? 'Setup' : 'Battle'}</dd>
+                <dt>フェーズ</dt>
+                <dd>{game.phase === 'setup' ? '配置中' : '対局中'}</dd>
               </div>
               <div>
-                <dt>Mode</dt>
-                <dd>{autoMatch ? 'CPU vs CPU' : 'You vs CPU'}</dd>
+                <dt>対戦モード</dt>
+                <dd>{autoMatch ? 'CPU vs CPU' : 'あなた vs CPU'}</dd>
               </div>
               <div>
-                <dt>Max Stack</dt>
+                <dt>最大スタック</dt>
                 <dd>{ruleset.maxStackHeight}</dd>
               </div>
               <div>
-                <dt>CPU Setting</dt>
+                <dt>CPU 難易度</dt>
                 <dd>{cpuSettingSummary}</dd>
               </div>
               <div>
-                <dt>Backend</dt>
+                <dt>思考バックエンド</dt>
                 <dd>{cpuService.mode}</dd>
               </div>
             </dl>
@@ -714,13 +714,13 @@ function App() {
 
           <section className="card">
             <div className="section-heading">
-              <h2>Status</h2>
+              <h2>対局状況</h2>
               <div className="section-actions">
                 <button type="button" className="rule-button" onClick={openRuleGuide}>
-                  Rules
+                  ルール
                 </button>
                 <button type="button" className="rule-button" onClick={() => setDialogState({ type: 'log' })}>
-                  Log
+                  ログ
                 </button>
               </div>
             </div>
@@ -732,11 +732,11 @@ function App() {
 
             <div className="status-meta-grid">
               <div className="status-meta-card">
-                <span>Move Count</span>
+                <span>手数</span>
                 <strong>{game.history.length}</strong>
               </div>
               <div className="status-meta-card">
-                <span>Elapsed</span>
+                <span>対局時間</span>
                 <strong>{matchElapsedLabel}</strong>
               </div>
             </div>
@@ -794,25 +794,25 @@ function App() {
           </section>
 
           <section className="card settings-panel">
-            <div className="section-heading">
-              <h2>Settings</h2>
+              <div className="section-heading">
+              <h2>設定</h2>
             </div>
 
             <div className="settings-toolbar">
               <div className="settings-cluster settings-cluster-primary">
                 <label className="control-group settings-field">
-                  <span>New game ruleset</span>
+                  <span>新規対局のルール</span>
                   <select
                     value={pendingRulesetId}
                     onChange={(event) => setPendingRulesetId(event.target.value as RulesetId)}
                   >
-                    <option value="beginner">Beginner</option>
-                    <option value="advanced">Advanced</option>
+                    <option value="beginner">初級編</option>
+                    <option value="advanced">上級編</option>
                   </select>
                 </label>
 
                 <label className="control-group settings-field">
-                  <span>Human match CPU</span>
+                  <span>対人戦の CPU 難易度</span>
                   <select value={cpuLevel} onChange={(event) => setCpuLevel(event.target.value as CpuLevel)}>
                     <option value="easy">Easy</option>
                     <option value="normal">Normal</option>
@@ -821,7 +821,7 @@ function App() {
                 </label>
 
                 <label className="control-group settings-field">
-                  <span>Auto match south</span>
+                  <span>自動対局 先手CPU</span>
                   <select
                     value={autoMatchCpuLevels.south}
                     onChange={(event) =>
@@ -838,7 +838,7 @@ function App() {
                 </label>
 
                 <label className="control-group settings-field">
-                  <span>Auto match north</span>
+                  <span>自動対局 後手CPU</span>
                   <select
                     value={autoMatchCpuLevels.north}
                     onChange={(event) =>
@@ -855,7 +855,7 @@ function App() {
                 </label>
 
                 <button type="button" className="settings-button" onClick={() => openConfirmDialog('auto-match')}>
-                  Auto Match
+                  自動対局
                 </button>
                 <button
                   type="button"
@@ -863,7 +863,7 @@ function App() {
                   disabled={!autoMatch || !!game.winner}
                   onClick={toggleAutoMatchPaused}
                 >
-                  {autoMatchPaused ? 'Resume' : 'Pause'}
+                  {autoMatchPaused ? '再開' : '一時停止'}
                 </button>
                 {game.phase === 'setup' ? (
                   <button
@@ -872,21 +872,21 @@ function App() {
                     disabled={!canReady || autoMatch || game.turn !== HUMAN_PLAYER || !!game.winner || thinking}
                     onClick={() => openConfirmDialog('ready')}
                   >
-                    Ready
+                    配置完了
                   </button>
                 ) : null}
               </div>
 
               <div className="settings-cluster settings-cluster-danger">
                 <button type="button" className="settings-button" onClick={() => openConfirmDialog('new-game')}>
-                  New Game
+                  新しい対局
                 </button>
                 <button
                   type="button"
                   className="settings-button secondary"
                   onClick={() => openConfirmDialog('clear-save')}
                 >
-                  Clear Save
+                  保存削除
                 </button>
                 {game.phase === 'battle' ? (
                   <button
@@ -895,7 +895,7 @@ function App() {
                     disabled={autoMatch || game.turn !== HUMAN_PLAYER || !!game.winner}
                     onClick={() => openConfirmDialog('resign')}
                   >
-                    Resign
+                    投了
                   </button>
                 ) : null}
               </div>
@@ -904,15 +904,15 @@ function App() {
         </main>
 
         <aside className="panel side-panel">
-          <HandTray owner="north" title={`${northLabel} Reserve`} items={northTrayItems} />
+          <HandTray owner="north" title={`${northLabel}の持ち駒`} items={northTrayItems} />
 
           <section className="card action-card">
-            <h2>Pending Actions</h2>
+            <h2>選択可能な行動</h2>
             {pendingActions.length === 0 ? (
               <p className="muted">
                 {game.phase === 'setup'
-                  ? 'Select a reserve piece and click a setup square.'
-                  : 'Select a piece on the board or in hand to list legal actions here.'}
+                  ? '持ち駒を選んで配置マスをクリックしてください。'
+                  : '盤上の駒か持ち駒を選ぶと、ここに実行可能な行動が表示されます。'}
               </p>
             ) : (
               <div className="action-list">
@@ -927,7 +927,7 @@ function App() {
 
           <HandTray
             owner="south"
-            title={game.phase === 'setup' ? `${southLabel} Setup Reserve` : `${southLabel} Reserve`}
+            title={game.phase === 'setup' ? `${southLabel}の配置用持ち駒` : `${southLabel}の持ち駒`}
             items={southTrayItems}
           />
         </aside>
