@@ -15,7 +15,7 @@ export function RuleGuideDialog({ activeTab, onSelectTab, onClose }: RuleGuideDi
   return (
     <ModalDialog
       eyebrow="Rule Guide"
-      title="ルール"
+      title="軍儀ルール"
       onClose={onClose}
       initialFocusRef={closeButtonRef}
       headerActions={

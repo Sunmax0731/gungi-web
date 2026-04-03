@@ -28,9 +28,9 @@ export function GameResultDialog({ winner, winnerLabel, reason, onClose }: GameR
     >
       <div className="result-block">
         <strong className="result-winner" data-winner={winner}>
-          {winnerLabel} の勝ち
+          {winnerLabel}の勝ち
         </strong>
-        <p className="modal-lead">勝利条件: {victoryReasonText(reason)}</p>
+        <p className="modal-lead">勝因: {victoryReasonText(reason)}</p>
       </div>
     </ModalDialog>
   );

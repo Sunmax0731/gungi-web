@@ -215,7 +215,12 @@ export function BoardScene({
     : 1;
 
   return (
-    <div className="board-canvas">
+    <div
+      className="board-canvas"
+      onContextMenu={(event) => {
+        event.preventDefault();
+      }}
+    >
       <Canvas
         camera={{ position: [0, 8.15, 6.55], fov: 40 }}
         gl={{ antialias: true, powerPreference: 'high-performance' }}
@@ -336,6 +341,11 @@ export function BoardScene({
           maxPolarAngle={1.14}
           minDistance={6.2}
           minPolarAngle={0.68}
+          mouseButtons={{
+            LEFT: THREE.MOUSE.ROTATE,
+            MIDDLE: THREE.MOUSE.DOLLY,
+            RIGHT: THREE.MOUSE.ROTATE,
+          }}
           target={[0, 0.08, -0.36]}
         />
       </Canvas>

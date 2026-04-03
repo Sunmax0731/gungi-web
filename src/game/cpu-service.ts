@@ -1,4 +1,5 @@
 import { computeBestMove } from './ai';
+import { type CpuThought, type CpuThoughtReporter } from './cpu-thought';
 import { type CpuLevel, type GameMove, type GameState } from './types';
 
 export type CpuBackend = 'worker' | 'main-thread';
@@ -9,14 +10,24 @@ interface CpuWorkerRequest {
   state: GameState;
 }
 
-interface CpuWorkerResponse {
+interface CpuWorkerProgressResponse {
   id: number;
+  type: 'progress';
+  thought: CpuThought;
+}
+
+interface CpuWorkerResultResponse {
+  id: number;
+  type: 'result';
   move: GameMove | null;
 }
+
+type CpuWorkerResponse = CpuWorkerProgressResponse | CpuWorkerResultResponse;
 
 interface PendingRequest {
   reject: (reason?: unknown) => void;
   resolve: (move: GameMove | null) => void;
+  onProgress?: CpuThoughtReporter;
 }
 
 export class CpuService {
@@ -34,9 +45,13 @@ export class CpuService {
     return this.backend;
   }
 
-  async computeMove(state: GameState, level: CpuLevel): Promise<GameMove | null> {
+  async computeMove(
+    state: GameState,
+    level: CpuLevel,
+    onProgress?: CpuThoughtReporter,
+  ): Promise<GameMove | null> {
     if (!this.worker) {
-      return computeBestMove(state, level);
+      return computeBestMove(state, level, { onProgress });
     }
 
     const request: CpuWorkerRequest = {
@@ -46,7 +61,7 @@ export class CpuService {
     };
 
     return new Promise((resolve, reject) => {
-      this.pending.set(request.id, { resolve, reject });
+      this.pending.set(request.id, { resolve, reject, onProgress });
       this.worker?.postMessage(request);
     });
   }
@@ -72,6 +87,11 @@ export class CpuService {
       worker.onmessage = (event: MessageEvent<CpuWorkerResponse>) => {
         const pending = this.pending.get(event.data.id);
         if (!pending) {
+          return;
+        }
+
+        if (event.data.type === 'progress') {
+          pending.onProgress?.(event.data.thought);
           return;
         }
 

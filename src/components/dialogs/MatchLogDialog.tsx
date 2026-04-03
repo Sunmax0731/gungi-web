@@ -1,6 +1,6 @@
 import { useRef } from 'react';
-import { ModalDialog } from './ModalDialog';
 import { type MoveRecord } from '../../game/types';
+import { ModalDialog } from './ModalDialog';
 
 interface MatchLogDialogProps {
   records: MoveRecord[];
@@ -23,13 +23,13 @@ export function MatchLogDialog({ records, onClose }: MatchLogDialogProps) {
       }
     >
       {records.length === 0 ? (
-        <p className="modal-lead">まだ棋譜は記録されていません。</p>
+        <p className="modal-lead">まだ記録された棋譜はありません。</p>
       ) : (
         <ol className="modal-log">
           {records.map((record) => (
             <li key={record.ply}>
               <span>{record.notation}</span>
-              {record.captured.length > 0 ? <strong>{record.captured.length} 駒捕獲</strong> : null}
+              {record.captured.length > 0 ? <strong>{record.captured.length}枚捕獲</strong> : null}
             </li>
           ))}
         </ol>

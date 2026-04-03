@@ -15,6 +15,7 @@ import { MatchLogDialog } from './components/dialogs/MatchLogDialog';
 import { RuleGuideDialog } from './components/dialogs/RuleGuideDialog';
 import { compareCoords, getTopPiece } from './game/board';
 import { createCpuService } from './game/cpu-service';
+import { type CpuThought } from './game/cpu-thought';
 import {
   applyMove,
   createReadyMove,
@@ -65,20 +66,20 @@ function getMarshalStatus(
   threatened: boolean,
   phase: GamePhase,
   ready: boolean,
-) {
+): string {
   if (phase === 'setup') {
     if (ready) {
-      return '配置完了';
+      return '配置済み';
     }
 
-    return marshalExists ? '帥を配置済み' : '帥が未配置';
+    return marshalExists ? '帥を配置済み' : '帥を未配置';
   }
 
   if (!marshalExists) {
     return '帥を喪失';
   }
 
-  return threatened ? '脅威あり' : '安全';
+  return threatened ? '脅威あり' : '安定';
 }
 
 function getParticipantLabel(player: Player, mode: MatchMode): string {
@@ -87,6 +88,11 @@ function getParticipantLabel(player: Player, mode: MatchMode): string {
   }
 
   return player === HUMAN_PLAYER ? 'あなた' : 'CPU';
+}
+
+function appendCpuThought(thoughts: CpuThought[], thought: CpuThought): CpuThought[] {
+  const nextThoughts = [...thoughts, thought];
+  return nextThoughts.slice(-5);
 }
 
 function App() {
@@ -98,6 +104,8 @@ function App() {
   const [selectedSquare, setSelectedSquare] = useState<Coord | null>(null);
   const [selectedHandKind, setSelectedHandKind] = useState<PieceKind | null>(null);
   const [pendingActions, setPendingActions] = useState<GameMove[]>([]);
+  const [cpuThoughts, setCpuThoughts] = useState<CpuThought[]>([]);
+  const [cpuThoughtPlayer, setCpuThoughtPlayer] = useState<Player | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [dialogState, setDialogState] = useState<DialogState>(null);
   const [activeRuleGuideId, setActiveRuleGuideId] = useState<RuleGuideId>(() =>
@@ -131,6 +139,7 @@ function App() {
   );
   const southLabel = getParticipantLabel(HUMAN_PLAYER, matchMode);
   const northLabel = getParticipantLabel(CPU_PLAYER, matchMode);
+  const cpuThoughtTitle = `${getParticipantLabel(cpuThoughtPlayer ?? game.turn, matchMode)}の思考ログ`;
 
   const selectedMoves = useMemo(() => {
     if (selectedSquare && game.phase === 'battle') {
@@ -166,18 +175,18 @@ function App() {
     }
 
     if (game.phase === 'setup') {
-      return '駒を配置して帥を含む布陣を整えてください。準備完了で対局が始まります。';
+      return '手駒を選んで帥を含む配置を進めてください。配置が整ったら「配置確定」で対局が始まります。';
     }
 
-    return '盤上の駒か手駒を選ぶと、合法な移動先や候補アクションを確認できます。';
+    return '盤上の駒か手駒を選ぶと、実行できる移動やアクションが候補アクションに表示されます。';
   }, [game.board, game.phase, selectedHandKind, selectedSquare]);
 
   const statusBanner = useMemo(() => {
     if (game.winner) {
       return {
         tone: 'victory',
-        title: `${getParticipantLabel(game.winner, matchMode)} の勝ち`,
-        detail: `勝利条件: ${victoryReasonText(game.victoryReason)}`,
+        title: `${getParticipantLabel(game.winner, matchMode)}の勝ち`,
+        detail: `勝因: ${victoryReasonText(game.victoryReason)}`,
       };
     }
 
@@ -185,7 +194,7 @@ function App() {
       return {
         tone: 'thinking',
         title: autoMatch ? '自動対局中' : 'CPU 思考中',
-        detail: `${getParticipantLabel(game.turn, matchMode)} が次の一手を考えています。`,
+        detail: `${getParticipantLabel(game.turn, matchMode)} が次の一手を検討しています。`,
       };
     }
 
@@ -202,7 +211,7 @@ function App() {
 
     return {
       tone: 'active',
-      title: `${getParticipantLabel(game.turn, matchMode)} の手番`,
+      title: `${getParticipantLabel(game.turn, matchMode)}の手番`,
       detail: selectionSummary,
     };
   }, [autoMatch, game.phase, game.turn, game.victoryReason, game.winner, matchMode, selectionSummary, thinking]);
@@ -245,8 +254,17 @@ function App() {
 
     let cancelled = false;
     const timer = window.setTimeout(() => {
+      setCpuThoughtPlayer(game.turn);
+      setCpuThoughts([]);
+
       void cpuService
-        .computeMove(game, cpuLevel)
+        .computeMove(game, cpuLevel, (thought) => {
+          if (cancelled) {
+            return;
+          }
+
+          setCpuThoughts((current) => appendCpuThought(current, thought));
+        })
         .then((move) => {
           if (cancelled) {
             return;
@@ -272,7 +290,7 @@ function App() {
             return;
           }
 
-          setErrorMessage(error instanceof Error ? error.message : 'CPU の思考処理に失敗しました。');
+          setErrorMessage(error instanceof Error ? error.message : 'CPU の思考処理でエラーが発生しました。');
         });
     }, 320);
 
@@ -296,7 +314,7 @@ function App() {
       clearSelectionState();
       setErrorMessage(null);
     } catch (error) {
-      setErrorMessage(error instanceof Error ? error.message : '手の適用に失敗しました。');
+      setErrorMessage(error instanceof Error ? error.message : '手の適用中にエラーが発生しました。');
     }
   };
 
@@ -401,6 +419,8 @@ function App() {
       setMatchMode(mode);
       setGame(createInitialGame(pendingRulesetId));
     });
+    setCpuThoughts([]);
+    setCpuThoughtPlayer(null);
     clearSelectionState();
     setErrorMessage(null);
   };
@@ -461,32 +481,32 @@ function App() {
     dialogState?.type === 'confirm'
       ? {
           'new-game': {
-            title: '新しい対局を開始しますか',
-            message: '現在の盤面と選択状態は破棄されます。進行中の対局には戻れません。',
+            title: '新しい対局を開始しますか？',
+            message: '現在の盤面と選択状態は失われます。途中の対局に戻るには保存データが必要です。',
             confirmLabel: '開始する',
             tone: 'danger' as const,
           },
           'auto-match': {
-            title: '自動対局を開始しますか',
-            message: '現在の盤面は破棄されます。選択中のルールと難度で CPU 同士の対局を開始します。',
+            title: '自動対局を開始しますか？',
+            message: '選択中のルールと難度で、CPU 同士の新しい対局を開始します。',
             confirmLabel: '自動対局を開始',
             tone: 'danger' as const,
           },
           'clear-save': {
-            title: '保存データを削除しますか',
-            message: 'ローカルストレージ上の途中保存を削除します。現在の画面上の対局はそのままですが、次回の復元はできません。',
+            title: '保存データを削除しますか？',
+            message: 'ローカルストレージに保存された途中データを削除します。現在の盤面はそのままですが、次回復元はできなくなります。',
             confirmLabel: '削除する',
             tone: 'danger' as const,
           },
           ready: {
-            title: '配置を確定しますか',
-            message: '準備完了を押すと、配置フェーズには戻れません。',
+            title: '配置を確定しますか？',
+            message: '配置完了を送ると、現在の配置から対局が始まります。',
             confirmLabel: '確定する',
             tone: 'default' as const,
           },
           resign: {
-            title: '投了しますか',
-            message: '投了すると即座に対局が終了します。',
+            title: '投了しますか？',
+            message: '投了すると、即座に対局終了になります。',
             confirmLabel: '投了する',
             tone: 'danger' as const,
           },
@@ -530,7 +550,7 @@ function App() {
         <aside className="panel info-panel">
           <div className="panel-header">
             <p className="eyebrow">Browser Gungi</p>
-            <h1>軍議</h1>
+            <h1>軍儀</h1>
           </div>
 
           <section className="card">
@@ -606,7 +626,7 @@ function App() {
 
         <main className="board-panel">
           <section className="board-frame board-frame-plain">
-            <Suspense fallback={<div className="board-loading">3D 盤面を読み込み中...</div>}>
+            <Suspense fallback={<div className="board-loading">3D盤面を読み込み中...</div>}>
               <BoardScene
                 state={game}
                 selectedSquare={selectedSquare}
@@ -614,6 +634,19 @@ function App() {
                 onSquareClick={handleSquareClick}
               />
             </Suspense>
+            {autoMatch && cpuThoughts.length > 0 ? (
+              <div className="board-overlay">
+                <p className="board-overlay-kicker">{cpuThoughtTitle}</p>
+                <div className="board-overlay-log">
+                  {cpuThoughts.map((thought, index) => (
+                    <div key={`${thought.stage}-${index}`} className="board-overlay-entry">
+                      <strong>{thought.message}</strong>
+                      {thought.detail ? <span>{thought.detail}</span> : null}
+                    </div>
+                  ))}
+                </div>
+              </div>
+            ) : null}
           </section>
 
           <section className="card settings-panel">
@@ -651,17 +684,21 @@ function App() {
                     disabled={!canReady || autoMatch || game.turn !== HUMAN_PLAYER || !!game.winner || thinking}
                     onClick={() => openConfirmDialog('ready')}
                   >
-                    配置を確定
+                    配置確定
                   </button>
                 ) : null}
               </div>
 
               <div className="settings-cluster settings-cluster-danger">
                 <button type="button" className="settings-button" onClick={() => openConfirmDialog('new-game')}>
-                  新しい対局を開始
+                  対局開始
                 </button>
-                <button type="button" className="settings-button secondary" onClick={() => openConfirmDialog('clear-save')}>
-                  保存を削除
+                <button
+                  type="button"
+                  className="settings-button secondary"
+                  onClick={() => openConfirmDialog('clear-save')}
+                >
+                  保存削除
                 </button>
                 {game.phase === 'battle' ? (
                   <button
@@ -686,8 +723,8 @@ function App() {
             {pendingActions.length === 0 ? (
               <p className="muted">
                 {game.phase === 'setup'
-                  ? '手駒を選んで配置先をクリックすると、ここに候補アクションが表示されます。'
-                  : '移動元になる駒を選ぶと、ここから候補アクションを選べます。'}
+                  ? '手駒を選ぶと、配置先や重ね置きの候補がここに表示されます。'
+                  : '盤上の駒か手駒を選ぶと、実行できるアクションがここに表示されます。'}
               </p>
             ) : (
               <div className="action-list">

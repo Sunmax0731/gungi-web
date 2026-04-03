@@ -1,4 +1,5 @@
 import { getStack, listCoords } from './board';
+import { type CpuThoughtReporter } from './cpu-thought';
 import {
   applyMove,
   createReadyMove,
@@ -8,6 +9,7 @@ import {
   getPlayerMaterial,
   isMarshalThreatened,
 } from './engine';
+import { getPieceDefinition } from './pieces';
 import { getRuleset } from './rulesets';
 import { type CpuLevel, type GameMove, type GameState, type Player, type SearchOptions } from './types';
 
@@ -18,11 +20,54 @@ interface SearchContext {
   legalMoves: WeakMap<GameState, Map<Player, GameMove[]>>;
 }
 
+export interface ComputeBestMoveOptions {
+  onProgress?: CpuThoughtReporter;
+}
+
 function createSearchContext(): SearchContext {
   return {
     evaluations: new WeakMap(),
     legalMoves: new WeakMap(),
   };
+}
+
+function reportThought(
+  onProgress: CpuThoughtReporter | undefined,
+  stage: Parameters<CpuThoughtReporter>[0]['stage'],
+  message: string,
+  detail?: string,
+  progress?: number,
+) {
+  onProgress?.({ stage, message, detail, progress });
+}
+
+function formatMoveSummary(move: GameMove): string {
+  if (move.type === 'resign') {
+    return '投了';
+  }
+  if (move.type === 'ready') {
+    return '配置完了';
+  }
+
+  const pieceLabel = getPieceDefinition(move.pieceKind).label;
+
+  if (move.type === 'drop') {
+    return `${pieceLabel}を新`;
+  }
+  if (move.type === 'deploy') {
+    return `${pieceLabel}を配置`;
+  }
+  if (move.type === 'capture') {
+    return `${pieceLabel}で取る`;
+  }
+  if (move.type === 'stack') {
+    return `${pieceLabel}でツケ`;
+  }
+  if (move.type === 'betray') {
+    return `${pieceLabel}で寝返り`;
+  }
+
+  return `${pieceLabel}を移動`;
 }
 
 function readCache<T>(cache: WeakMap<GameState, Map<Player, T>>, state: GameState, player: Player): T | null {
@@ -257,7 +302,12 @@ function countPlacedPieces(state: GameState, player: Player): number {
   return state.board.flat().filter((piece) => piece.owner === player).length;
 }
 
-function pickSetupMove(state: GameState, level: CpuLevel, context: SearchContext): GameMove | null {
+function pickSetupMove(
+  state: GameState,
+  level: CpuLevel,
+  context: SearchContext,
+  onProgress?: CpuThoughtReporter,
+): GameMove | null {
   const player = state.turn;
   const ruleset = getRuleset(state.rulesetId);
   const legalMoves = getLegalMovesCached(context, state, player);
@@ -265,12 +315,15 @@ function pickSetupMove(state: GameState, level: CpuLevel, context: SearchContext
     return null;
   }
 
+  reportThought(onProgress, 'setup', '配置候補を整理中', `候補 ${legalMoves.length} 手`);
+
   const placedPieces = countPlacedPieces(state, player);
   const targetCount = level === 'easy' ? 10 : level === 'normal' ? 13 : 16;
   const preferred = ruleset.setup.kind === 'free' ? ruleset.setup.preferredPlacements : [];
   const deployMoves = legalMoves.filter((move): move is Extract<GameMove, { type: 'deploy' }> => move.type === 'deploy');
 
   if (!findMarshalCoord(state, player)) {
+    reportThought(onProgress, 'select', 'まず帥の配置を優先', '中央付近への配置を優先しています。');
     const marshalMove = deployMoves.find(
       (move) =>
         move.pieceKind === 'marshal' &&
@@ -281,6 +334,7 @@ function pickSetupMove(state: GameState, level: CpuLevel, context: SearchContext
   }
 
   if (placedPieces >= targetCount && legalMoves.some((move) => move.type === 'ready')) {
+    reportThought(onProgress, 'done', '配置が整ったため確定', `配置済み ${placedPieces} 枚`);
     return createReadyMove(player);
   }
 
@@ -298,18 +352,35 @@ function pickSetupMove(state: GameState, level: CpuLevel, context: SearchContext
   };
 
   const ordered = [...deployMoves].sort((left, right) => preferredScore(right) - preferredScore(left));
-  if (level === 'easy') {
-    return ordered[Math.floor(Math.random() * Math.min(4, ordered.length))] ?? ordered[0] ?? null;
+  const chosen =
+    level === 'easy'
+      ? ordered[Math.floor(Math.random() * Math.min(4, ordered.length))] ?? ordered[0] ?? null
+      : ordered[0] ?? chooseGreedyMove(state, player, legalMoves, context);
+
+  if (chosen) {
+    reportThought(onProgress, 'done', `${formatMoveSummary(chosen)} を選択`, `配置済み ${placedPieces} / 目安 ${targetCount}`);
   }
 
-  return ordered[0] ?? chooseGreedyMove(state, player, legalMoves, context);
+  return chosen;
 }
 
-export function computeBestMove(state: GameState, level: CpuLevel): GameMove | null {
+export function computeBestMove(
+  state: GameState,
+  level: CpuLevel,
+  options: ComputeBestMoveOptions = {},
+): GameMove | null {
   const context = createSearchContext();
+  const onProgress = options.onProgress;
+
+  reportThought(
+    onProgress,
+    'start',
+    `${state.turn === 'south' ? '先手CPU' : '後手CPU'} が思考開始`,
+    `${state.phase === 'setup' ? '配置フェーズ' : '対局フェーズ'} / 難度 ${level.toUpperCase()}`,
+  );
 
   if (state.phase === 'setup') {
-    return pickSetupMove(state, level, context);
+    return pickSetupMove(state, level, context, onProgress);
   }
 
   const player = state.turn;
@@ -318,40 +389,74 @@ export function computeBestMove(state: GameState, level: CpuLevel): GameMove | n
     return null;
   }
 
+  reportThought(onProgress, 'legal', '合法手を列挙', `${legalMoves.length} 手を確認`);
+
   if (level === 'easy') {
-    return chooseRandomMove(legalMoves);
+    const move = chooseRandomMove(legalMoves);
+    if (move) {
+      reportThought(onProgress, 'select', '上位候補からランダム選択', formatMoveSummary(move));
+      reportThought(onProgress, 'done', `${formatMoveSummary(move)} を決定`);
+    }
+    return move;
   }
 
   if (level === 'normal') {
-    return chooseGreedyMove(state, player, legalMoves, context);
+    reportThought(onProgress, 'evaluate', '各候補を一手読みで評価', `${legalMoves.length} 手をスコア化`);
+    const move = chooseGreedyMove(state, player, legalMoves, context);
+    if (move) {
+      reportThought(onProgress, 'done', `${formatMoveSummary(move)} を決定`);
+    }
+    return move;
   }
 
-  const options: SearchOptions = {
+  const optionsForSearch: SearchOptions = {
     depth: legalMoves.length > 24 ? 2 : 3,
     beamWidth: legalMoves.length > 30 ? 8 : 12,
   };
 
-  const orderedMoves = orderMoves(state, legalMoves, player, context).slice(0, options.beamWidth);
+  reportThought(
+    onProgress,
+    'search',
+    '候補手を探索中',
+    `深さ ${optionsForSearch.depth} / ビーム幅 ${optionsForSearch.beamWidth}`,
+    0,
+  );
+
+  const orderedMoves = orderMoves(state, legalMoves, player, context).slice(0, optionsForSearch.beamWidth);
   let bestScore = Number.NEGATIVE_INFINITY;
   let bestMove: GameMove | null = null;
 
-  for (const move of orderedMoves) {
+  for (const [index, move] of orderedMoves.entries()) {
+    reportThought(
+      onProgress,
+      'search',
+      `候補 ${index + 1}/${orderedMoves.length} を探索`,
+      formatMoveSummary(move),
+      (index + 1) / orderedMoves.length,
+    );
+
     const nextState = applyMove(state, move, { validate: false });
     const score = minimax(
       nextState,
-      options.depth - 1,
+      optionsForSearch.depth - 1,
       Number.NEGATIVE_INFINITY,
       Number.POSITIVE_INFINITY,
       player,
-      options,
+      optionsForSearch,
       context,
     );
 
     if (score > bestScore) {
       bestScore = score;
       bestMove = move;
+      reportThought(onProgress, 'select', '暫定首位を更新', `${formatMoveSummary(move)} / 評価 ${Math.round(score)}`);
     }
   }
 
-  return bestMove ?? chooseGreedyMove(state, player, legalMoves, context);
+  const fallbackMove = bestMove ?? chooseGreedyMove(state, player, legalMoves, context);
+  if (fallbackMove) {
+    reportThought(onProgress, 'done', `${formatMoveSummary(fallbackMove)} を決定`);
+  }
+
+  return fallbackMove;
 }
