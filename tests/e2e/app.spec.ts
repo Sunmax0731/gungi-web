@@ -69,7 +69,7 @@ test('supports hint display, save-slot restore, and replay controls on the main 
     .toBeGreaterThan(0);
 
   await page.getByTestId('open-match-log').click();
-  let logDialog = page.getByRole('dialog', { name: '対局ログ' });
+  const logDialog = page.getByRole('dialog', { name: '対局ログ' });
   await logDialog.getByRole('button', { name: /先手|後手/ }).first().click();
 
   await expect(page.getByTestId('replay-controls')).toBeVisible();

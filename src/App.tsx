@@ -653,6 +653,17 @@ function App() {
               />
             </Suspense>
 
+            {selection.selectedPieceKind && !session.autoMatch ? (
+              <div className="board-detail-overlay">
+                <PieceInsightCard
+                  emptyText="駒を選ぶと、ここに特徴と移動範囲が表示されます。"
+                  kind={selection.selectedPieceKind}
+                  rulesetId={session.game.rulesetId}
+                  title="選択中の駒"
+                />
+              </div>
+            ) : null}
+
             {session.autoMatch && !replay.isReplaying && (cpu.cpuThoughts.length > 0 || session.autoMatchPaused) ? (
               <div className="board-overlay">
                 <div className="board-overlay-header">
@@ -893,13 +904,6 @@ function App() {
 
         <aside className="panel side-panel">
           <HandTray owner="north" title={`${northLabel}の持ち駒`} items={northTrayItems} />
-
-          <PieceInsightCard
-            emptyText="駒を選ぶと、ここに特徴と移動範囲が表示されます。"
-            kind={selection.selectedPieceKind}
-            rulesetId={session.game.rulesetId}
-            title="選択中の駒"
-          />
 
           <section className="card hint-card">
             <div className="section-heading">
