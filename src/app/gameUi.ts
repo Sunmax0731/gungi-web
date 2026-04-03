@@ -61,7 +61,7 @@ export const RULE_GUIDES: Record<RuleGuideId, RuleGuide> = {
         title: '画面表示',
         items: [
           '候補アクション: 選択中の駒に対して実行できる手を表示します。',
-          '思考系: CPU が worker と main-thread のどちらで動いているかを示します。',
+          '思考系: CPU がワーカーとメインスレッドのどちらで動いているかを示します。',
           '自動対局: 先手CPUと後手CPUが続けて指す観戦モードです。',
         ],
       },
@@ -163,7 +163,7 @@ export const RULE_GUIDES: Record<RuleGuideId, RuleGuide> = {
         title: 'CPU と観戦',
         items: [
           '新しい対局だけでなく、自動対局でも上級編を選択できます。',
-          'CPU 難度は Easy / Normal / Hard の3段階です。',
+          'CPU 難度は 初級 / 標準 / 上級 の3段階です。',
           '自動対局中は盤面上に CPU の思考ログをオーバーレイ表示します。',
         ],
       },
@@ -243,10 +243,10 @@ export function formatClockDuration(elapsedMs: number): string {
 
 export function cpuLevelText(level: CpuLevel): string {
   if (level === 'easy') {
-    return 'Easy';
+    return '初級';
   }
   if (level === 'hard') {
-    return 'Hard';
+    return '上級';
   }
-  return 'Normal';
+  return '標準';
 }

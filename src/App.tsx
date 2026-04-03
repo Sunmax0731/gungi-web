@@ -63,14 +63,14 @@ function isTargetMove(move: GameMove): move is Exclude<GameMove, { type: 'ready'
 
 function formatThoughtDuration(elapsedMs: number): string {
   if (elapsedMs < 1_000) {
-    return `${Math.round(elapsedMs)}ms`;
+    return `${Math.round(elapsedMs)}ミリ秒`;
   }
 
   if (elapsedMs < 10_000) {
-    return `${(elapsedMs / 1_000).toFixed(1)}s`;
+    return `${(elapsedMs / 1_000).toFixed(1)}秒`;
   }
 
-  return `${Math.round(elapsedMs / 1_000)}s`;
+  return `${Math.round(elapsedMs / 1_000)}秒`;
 }
 
 function appendCpuThought(thoughts: CpuThoughtEntry[], thought: CpuThought, elapsedMs: number): CpuThoughtEntry[] {
@@ -100,27 +100,27 @@ function getVictoryReasonLabel(reason: VictoryReason | null): string {
 
 function getMoveTypeLabel(move: GameMove): string {
   if (move.type === 'capture') {
-    return 'capture';
+    return '捕獲';
   }
   if (move.type === 'stack') {
-    return 'stack';
+    return '重ねる';
   }
   if (move.type === 'betray') {
-    return 'betray';
+    return '裏切り';
   }
   if (move.type === 'drop') {
-    return 'drop';
+    return '新';
   }
   if (move.type === 'deploy') {
-    return 'deploy';
+    return '配置';
   }
   if (move.type === 'ready') {
-    return 'ready';
+    return '配置完了';
   }
   if (move.type === 'resign') {
-    return 'resign';
+    return '投了';
   }
-  return 'move';
+  return '移動';
 }
 
 function getMoveButtonLabel(move: GameMove): string {
@@ -139,17 +139,17 @@ function getMarshalStatus(
 ): string {
   if (inSetup) {
     if (ready) {
-      return 'Ready';
+      return '配置完了';
     }
 
-    return marshalExists ? 'Marshal placed' : 'Marshal missing';
+    return marshalExists ? '帥を配置済み' : '帥が未配置';
   }
 
   if (!marshalExists) {
-    return 'Lost';
+    return '帥を喪失';
   }
 
-  return threatened ? 'In check' : 'Safe';
+  return threatened ? '王手' : '安全';
 }
 
 function getSelectionSummary(
@@ -227,11 +227,12 @@ function App() {
   );
   const southLabel = getParticipantLabel('south', matchMode);
   const northLabel = getParticipantLabel('north', matchMode);
-  const cpuThoughtTitle = `${getParticipantLabel(cpuThoughtPlayer ?? game.turn, matchMode)} thoughts`;
+  const cpuThoughtTitle = `${getParticipantLabel(cpuThoughtPlayer ?? game.turn, matchMode)}の思考ログ`;
   const cpuThoughtElapsedLabel = formatThoughtDuration(cpuThoughtElapsedMs);
   const cpuSettingSummary = autoMatch
-    ? `${southLabel}: ${cpuLevelText(autoMatchCpuLevels.south)} / ${northLabel}: ${cpuLevelText(autoMatchCpuLevels.north)}`
+    ? `${southLabel}: ${cpuLevelText(autoMatchCpuLevels.south)}\n${northLabel}: ${cpuLevelText(autoMatchCpuLevels.north)}`
     : cpuLevelText(cpuLevel);
+  const cpuBackendLabel = cpuService.mode === 'worker' ? 'ワーカー' : 'メインスレッド';
   const selectionSummary = getSelectionSummary(game, selectedSquare, selectedHandKind);
 
   const selectedMoves = useMemo(() => {
@@ -406,7 +407,7 @@ function App() {
             return;
           }
 
-          setErrorMessage(error instanceof Error ? error.message : 'CPU move generation failed.');
+          setErrorMessage(error instanceof Error ? error.message : 'CPU の思考に失敗しました。');
         });
     }, 320);
 
@@ -430,7 +431,7 @@ function App() {
       clearSelectionState();
       setErrorMessage(null);
     } catch (error) {
-      setErrorMessage(error instanceof Error ? error.message : 'Could not apply the move.');
+      setErrorMessage(error instanceof Error ? error.message : '手を適用できませんでした。');
     }
   };
 
@@ -554,7 +555,7 @@ function App() {
 
   const removeSavedGame = () => {
     clearSavedGame();
-    setErrorMessage('Saved data removed from local storage.');
+    setErrorMessage('保存データをブラウザから削除しました。');
   };
 
   const toggleAutoMatchPaused = () => {
@@ -610,7 +611,7 @@ function App() {
     dialogState?.type === 'confirm'
       ? {
           'new-game': {
-            title: 'Start a new game?',
+            title: '新しい対局を開始しますか？',
             message: '現在の盤面は破棄されます。保存データは削除するまで保持されます。',
             confirmLabel: '新しい対局を開始',
             tone: 'danger' as const,
@@ -676,8 +677,8 @@ function App() {
       <div className="app-shell">
         <aside className="panel info-panel">
           <div className="panel-header">
-            <p className="eyebrow">Browser Game</p>
-            <h1>Gungi</h1>
+            <p className="eyebrow">ブラウザゲーム</p>
+            <h1>軍儀</h1>
           </div>
 
           <section className="card">
@@ -693,7 +694,7 @@ function App() {
               </div>
               <div>
                 <dt>対戦モード</dt>
-                <dd>{autoMatch ? 'CPU vs CPU' : 'あなた vs CPU'}</dd>
+                <dd>{autoMatch ? 'CPU対CPU' : 'あなた対CPU'}</dd>
               </div>
               <div>
                 <dt>最大スタック</dt>
@@ -701,11 +702,11 @@ function App() {
               </div>
               <div>
                 <dt>CPU 難易度</dt>
-                <dd>{cpuSettingSummary}</dd>
+                <dd className={autoMatch ? 'stats-grid-multiline' : undefined}>{cpuSettingSummary}</dd>
               </div>
               <div>
                 <dt>思考バックエンド</dt>
-                <dd>{cpuService.mode}</dd>
+                <dd>{cpuBackendLabel}</dd>
               </div>
             </dl>
             <p className="muted">{ruleset.description}</p>
@@ -762,7 +763,7 @@ function App() {
 
         <main className="board-panel">
           <section className="board-frame board-frame-plain">
-            <Suspense fallback={<div className="board-loading">Loading 3D board...</div>}>
+            <Suspense fallback={<div className="board-loading">3D盤面を読み込み中...</div>}>
               <BoardScene
                 state={game}
                 selectedSquare={selectedSquare}
@@ -777,7 +778,7 @@ function App() {
                   <p className="board-overlay-kicker">{cpuThoughtTitle}</p>
                   <p className="board-overlay-meta">{cpuThoughtElapsedLabel}</p>
                 </div>
-                {autoMatchPaused ? <p className="board-overlay-state">Paused</p> : null}
+                {autoMatchPaused ? <p className="board-overlay-state">一時停止中</p> : null}
                 <div className="board-overlay-log">
                   {cpuThoughts.map((entry, index) => (
                     <div key={`${entry.thought.stage}-${index}`} className="board-overlay-entry">
@@ -814,9 +815,9 @@ function App() {
                 <label className="control-group settings-field">
                   <span>対人戦の CPU 難易度</span>
                   <select value={cpuLevel} onChange={(event) => setCpuLevel(event.target.value as CpuLevel)}>
-                    <option value="easy">Easy</option>
-                    <option value="normal">Normal</option>
-                    <option value="hard">Hard</option>
+                    <option value="easy">初級</option>
+                    <option value="normal">標準</option>
+                    <option value="hard">上級</option>
                   </select>
                 </label>
 
@@ -831,9 +832,9 @@ function App() {
                       }))
                     }
                   >
-                    <option value="easy">Easy</option>
-                    <option value="normal">Normal</option>
-                    <option value="hard">Hard</option>
+                    <option value="easy">初級</option>
+                    <option value="normal">標準</option>
+                    <option value="hard">上級</option>
                   </select>
                 </label>
 
@@ -848,9 +849,9 @@ function App() {
                       }))
                     }
                   >
-                    <option value="easy">Easy</option>
-                    <option value="normal">Normal</option>
-                    <option value="hard">Hard</option>
+                    <option value="easy">初級</option>
+                    <option value="normal">標準</option>
+                    <option value="hard">上級</option>
                   </select>
                 </label>
 

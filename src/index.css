@@ -283,6 +283,11 @@ select:disabled,
   white-space: nowrap;
 }
 
+.stats-grid dd.stats-grid-multiline {
+  white-space: pre-line;
+  line-height: 1.35;
+}
+
 .status-line {
   margin: 0;
   font-size: 1.08rem;

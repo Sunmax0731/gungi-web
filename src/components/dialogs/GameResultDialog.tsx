@@ -16,7 +16,7 @@ export function GameResultDialog({ winner, winnerLabel, reason, elapsedLabel, on
 
   return (
     <ModalDialog
-      eyebrow="Result"
+      eyebrow="結果"
       title="対局結果"
       onClose={onClose}
       initialFocusRef={closeButtonRef}

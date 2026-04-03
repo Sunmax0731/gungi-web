@@ -13,7 +13,7 @@ export function MatchLogDialog({ records, onClose }: MatchLogDialogProps) {
 
   return (
     <ModalDialog
-      eyebrow="Match Log"
+      eyebrow="ログ"
       title="対局ログ"
       onClose={onClose}
       initialFocusRef={closeButtonRef}
@@ -24,7 +24,7 @@ export function MatchLogDialog({ records, onClose }: MatchLogDialogProps) {
       }
     >
       {records.length === 0 ? (
-        <p className="modal-lead">まだ記録された棋譜はありません。</p>
+        <p className="modal-lead">まだ棋譜は記録されていません。</p>
       ) : (
         <ol className="modal-log">
           {records.map((record) => (

@@ -22,7 +22,7 @@ export function ConfirmDialog({
 
   return (
     <ModalDialog
-      eyebrow="Confirmation"
+      eyebrow="確認"
       title={title}
       onClose={onClose}
       initialFocusRef={cancelButtonRef}
