@@ -614,8 +614,8 @@ select:hover,
 .board-frame-plain .board-canvas,
 .board-frame-plain .board-loading,
 .board-frame-plain .board-grid-shell {
-  min-height: 450px;
-  height: min(53svh, 632px);
+  min-height: 560px;
+  height: min(67svh, 780px);
 }
 
 .board-canvas {
@@ -1410,8 +1410,8 @@ select:hover,
   .board-frame-plain .board-canvas,
   .board-frame-plain .board-loading,
   .board-frame-plain .board-grid-shell {
-    min-height: 378px;
-    height: 48svh;
+    min-height: 460px;
+    height: min(58svh, 680px);
   }
 
   .settings-cluster-primary .settings-field {
