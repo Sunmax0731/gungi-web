@@ -1,5 +1,5 @@
 import { getPieceDefinition } from '../game/pieces';
-import { type GameMove, type PieceKind, type Player, type RulesetId, type VictoryReason } from '../game/types';
+import { type CpuLevel, type GameMove, type PieceKind, type Player, type RulesetId, type VictoryReason } from '../game/types';
 
 export const HAND_KIND_ORDER: PieceKind[] = [
   'marshal',
@@ -226,4 +226,27 @@ export function victoryReasonText(reason: VictoryReason | null): string {
     return '投了';
   }
   return '対局終了';
+}
+
+export function formatClockDuration(elapsedMs: number): string {
+  const totalSeconds = Math.max(0, Math.floor(elapsedMs / 1_000));
+  const hours = Math.floor(totalSeconds / 3_600);
+  const minutes = Math.floor((totalSeconds % 3_600) / 60);
+  const seconds = totalSeconds % 60;
+
+  if (hours > 0) {
+    return `${hours}:${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
+  }
+
+  return `${minutes}:${String(seconds).padStart(2, '0')}`;
+}
+
+export function cpuLevelText(level: CpuLevel): string {
+  if (level === 'easy') {
+    return 'Easy';
+  }
+  if (level === 'hard') {
+    return 'Hard';
+  }
+  return 'Normal';
 }

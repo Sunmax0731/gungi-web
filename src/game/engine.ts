@@ -1,3 +1,4 @@
+import { advanceClock, getClockSnapshot } from './clock';
 import {
   cloneBoard,
   compareCoords,
@@ -67,6 +68,18 @@ function getTierIndex(height: number): 0 | 1 | 2 {
 
 function stringifyMove(move: GameMove): string {
   return JSON.stringify(move);
+}
+
+function resolveRecordedAt(state: GameState, options: ApplyMoveOptions): string {
+  if (options.recordedAt) {
+    return options.recordedAt;
+  }
+
+  if (options.validate === false) {
+    return state.updatedAt;
+  }
+
+  return new Date().toISOString();
 }
 
 function createPieceId(
@@ -531,12 +544,18 @@ export function recordNotation(move: GameMove, captured: PieceInstance[]): strin
   return `${side} ${pieceLabel} ${coordLabel(move.from)}→${to} ${action}`;
 }
 
-function buildHistoryRecord(state: GameState, move: GameMove, captured: PieceInstance[]): MoveRecord {
+function buildHistoryRecord(
+  state: GameState,
+  move: GameMove,
+  captured: PieceInstance[],
+  elapsedMs: number,
+): MoveRecord {
   return {
     ply: state.history.length + 1,
     move,
     notation: formatNotation(move, captured),
     captured,
+    elapsedMs,
   };
 }
 
@@ -576,6 +595,7 @@ function applySetupMove(
   state: GameState,
   move: DeployMove | ReadyMove,
   validate: boolean,
+  recordedAt: string,
 ): GameState {
   const legalMoves = validate ? generateSetupMoves(state, move.player) : [];
   if (validate && !legalMoves.some((candidate) => stringifyMove(candidate) === stringifyMove(move))) {
@@ -608,6 +628,7 @@ function applySetupMove(
     : setupReady[opponent]
       ? move.player
       : opponent;
+  const snapshot = getClockSnapshot(state.clock, recordedAt);
 
   return {
     ...state,
@@ -616,8 +637,9 @@ function applySetupMove(
     phase: setupComplete ? 'battle' : 'setup',
     turn: nextTurn,
     setupReady,
-    updatedAt: new Date().toISOString(),
-    history: [...state.history, buildHistoryRecord(state, move, [])],
+    clock: advanceClock(state.clock, recordedAt, true),
+    updatedAt: recordedAt,
+    history: [...state.history, buildHistoryRecord(state, move, [], snapshot.turnElapsedMs)],
   };
 }
 
@@ -628,14 +650,17 @@ export function applyMove(
 ): GameState {
   const validate = options.validate ?? true;
   const evaluateEndgame = options.evaluateEndgame ?? true;
+  const recordedAt = resolveRecordedAt(state, options);
+  const snapshot = getClockSnapshot(state.clock, recordedAt);
 
   if (move.type === 'resign') {
     return {
       ...state,
       winner: getOpponent(move.player),
       victoryReason: 'resign',
-      history: [...state.history, buildHistoryRecord(state, move, [])],
-      updatedAt: new Date().toISOString(),
+      history: [...state.history, buildHistoryRecord(state, move, [], snapshot.turnElapsedMs)],
+      clock: advanceClock(state.clock, recordedAt, false),
+      updatedAt: recordedAt,
     };
   }
 
@@ -644,7 +669,7 @@ export function applyMove(
       throw new Error('Illegal move');
     }
 
-    return applySetupMove(state, move, validate);
+    return applySetupMove(state, move, validate, recordedAt);
   }
 
   if (move.type === 'deploy' || move.type === 'ready') {
@@ -724,8 +749,9 @@ export function applyMove(
     winner,
     victoryReason,
     moveNumber: state.moveNumber + (move.player === 'north' ? 1 : 0),
-    updatedAt: new Date().toISOString(),
-    history: [...state.history, buildHistoryRecord(state, move, captured)],
+    updatedAt: recordedAt,
+    clock: advanceClock(state.clock, recordedAt, !winner),
+    history: [...state.history, buildHistoryRecord(state, move, captured, snapshot.turnElapsedMs)],
   };
 
   if (winner || !evaluateEndgame) {

@@ -1,8 +1,8 @@
 import { createInitialGame } from './setup';
 import { type GameState, type RulesetId } from './types';
 
-const STORAGE_KEY = 'gungi-web-save-v2';
-const LEGACY_STORAGE_KEY = 'gungi-web-save-v1';
+const STORAGE_KEY = 'gungi-web-save-v3';
+const LEGACY_STORAGE_KEYS = ['gungi-web-save-v2', 'gungi-web-save-v1'] as const;
 
 function normalizeRulesetId(value: unknown): RulesetId {
   return value === 'advanced' ? 'advanced' : 'beginner';
@@ -20,6 +20,19 @@ function isGameState(value: unknown): value is Partial<GameState> {
 function normalizeGameState(value: Partial<GameState>): GameState {
   const normalizedRulesetId = normalizeRulesetId(value.rulesetId);
   const fallback = createInitialGame(normalizedRulesetId);
+  const now = new Date().toISOString();
+  const createdAt = value.createdAt ?? fallback.createdAt;
+  const updatedAt = value.updatedAt ?? fallback.updatedAt;
+  const legacyElapsedMs = Math.max(0, new Date(updatedAt).getTime() - new Date(createdAt).getTime());
+  const fallbackClock = value.winner
+    ? { matchElapsedMs: legacyElapsedMs, turnElapsedMs: 0, runningSince: null }
+    : { matchElapsedMs: legacyElapsedMs, turnElapsedMs: 0, runningSince: now };
+  const history = Array.isArray(value.history)
+    ? value.history.map((record) => ({
+        ...record,
+        elapsedMs: typeof record.elapsedMs === 'number' ? record.elapsedMs : 0,
+      }))
+    : fallback.history;
 
   return {
     ...fallback,
@@ -28,16 +41,15 @@ function normalizeGameState(value: Partial<GameState>): GameState {
     phase: value.phase ?? fallback.phase,
     startingPlayer: value.startingPlayer ?? fallback.startingPlayer,
     setupReady: value.setupReady ?? fallback.setupReady,
-    createdAt: value.createdAt ?? fallback.createdAt,
-    updatedAt: value.updatedAt ?? fallback.updatedAt,
+    history,
+    clock: value.clock ?? fallbackClock,
+    createdAt,
+    updatedAt,
   };
 }
 
 function readStorage(): string | null {
-  return (
-    window.localStorage.getItem(STORAGE_KEY) ??
-    window.localStorage.getItem(LEGACY_STORAGE_KEY)
-  );
+  return window.localStorage.getItem(STORAGE_KEY) ?? LEGACY_STORAGE_KEYS.map((key) => window.localStorage.getItem(key)).find(Boolean) ?? null;
 }
 
 export function loadSavedGame(): GameState | null {
@@ -66,5 +78,7 @@ export function resetSavedGame(): GameState {
 
 export function clearSavedGame(): void {
   window.localStorage.removeItem(STORAGE_KEY);
-  window.localStorage.removeItem(LEGACY_STORAGE_KEY);
+  LEGACY_STORAGE_KEYS.forEach((key) => {
+    window.localStorage.removeItem(key);
+  });
 }

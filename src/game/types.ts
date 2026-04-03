@@ -142,6 +142,13 @@ export interface MoveRecord {
   move: GameMove;
   notation: string;
   captured: PieceInstance[];
+  elapsedMs: number;
+}
+
+export interface GameClock {
+  matchElapsedMs: number;
+  turnElapsedMs: number;
+  runningSince: string | null;
 }
 
 export interface GameState {
@@ -156,6 +163,7 @@ export interface GameState {
   victoryReason: VictoryReason | null;
   moveNumber: number;
   history: MoveRecord[];
+  clock: GameClock;
   createdAt: string;
   updatedAt: string;
 }
@@ -163,6 +171,7 @@ export interface GameState {
 export interface ApplyMoveOptions {
   validate?: boolean;
   evaluateEndgame?: boolean;
+  recordedAt?: string;
 }
 
 export interface SearchOptions {

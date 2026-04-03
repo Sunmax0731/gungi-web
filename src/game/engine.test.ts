@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { computeBestMove } from './ai';
 import { createEmptyBoard, getStack } from './board';
+import { createInitialClock } from './clock';
 import { applyMove, createReadyMove, createResignMove, generateLegalMoves } from './engine';
 import { createInitialGame } from './setup';
 import { type Coord, type GameMove, type GameState, type PieceKind, type Player, type RulesetId } from './types';
@@ -58,6 +59,7 @@ function createCustomGame(rulesetId: RulesetId = 'beginner', turn: Player = 'sou
     victoryReason: null,
     moveNumber: 1,
     history: [],
+    clock: createInitialClock('2026-04-02T00:00:00.000Z'),
     createdAt: '2026-04-02T00:00:00.000Z',
     updatedAt: '2026-04-02T00:00:00.000Z',
   };
@@ -362,5 +364,34 @@ describe('gungi engine', () => {
 
     expect(nextState.winner).toBe('north');
     expect(nextState.victoryReason).toBe('resign');
+  });
+
+  it('records move elapsed time and total match time', () => {
+    const state = createCustomGame();
+    placePiece(state, 'south', 'marshal', { x: 4, y: 8 }, 's0');
+    placePiece(state, 'north', 'marshal', { x: 4, y: 0 }, 'n0');
+    placePiece(state, 'south', 'soldier', { x: 4, y: 4 }, 's1');
+
+    const move = generateLegalMoves(state).find(
+      (candidate): candidate is Extract<GameMove, { type: 'move' }> =>
+        candidate.type === 'move' &&
+        candidate.from.x === 4 &&
+        candidate.from.y === 4 &&
+        candidate.to.x === 4 &&
+        candidate.to.y === 3,
+    );
+
+    expect(move).toBeTruthy();
+    if (!move) {
+      return;
+    }
+
+    const nextState = applyMove(state, move, {
+      recordedAt: '2026-04-02T00:00:05.000Z',
+    });
+
+    expect(nextState.history.at(-1)?.elapsedMs).toBe(5_000);
+    expect(nextState.clock.matchElapsedMs).toBe(5_000);
+    expect(nextState.clock.runningSince).toBe('2026-04-02T00:00:05.000Z');
   });
 });

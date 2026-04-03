@@ -356,6 +356,29 @@ select:disabled,
   color: var(--md-on-error-container);
 }
 
+.status-meta-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.52rem;
+}
+
+.status-meta-card {
+  display: grid;
+  gap: 0.24rem;
+  border-radius: 18px;
+  background: var(--md-surface-container);
+  padding: 0.5rem 0.58rem;
+}
+
+.status-meta-card span {
+  color: var(--md-on-surface-variant);
+  font-size: 0.74rem;
+}
+
+.status-meta-card strong {
+  font-size: 0.9rem;
+}
+
 .error-text {
   margin: 0;
   border-radius: 18px;
@@ -838,9 +861,19 @@ select:hover,
 .modal-log li {
   display: flex;
   justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
   gap: 0.6rem;
   border-bottom: 1px solid rgba(124, 119, 111, 0.14);
   padding-bottom: 0.45rem;
+}
+
+.modal-log-meta {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  color: var(--md-on-surface-variant);
+  font-variant-numeric: tabular-nums;
 }
 
 .modal-action-row {
@@ -937,7 +970,8 @@ select:hover,
   }
 
   .stats-grid,
-  .threat-grid {
+  .threat-grid,
+  .status-meta-grid {
     grid-template-columns: 1fr;
   }
 

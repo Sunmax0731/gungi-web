@@ -1,4 +1,5 @@
 import { useRef } from 'react';
+import { formatClockDuration } from '../../app/gameUi';
 import { type MoveRecord } from '../../game/types';
 import { ModalDialog } from './ModalDialog';
 
@@ -29,6 +30,9 @@ export function MatchLogDialog({ records, onClose }: MatchLogDialogProps) {
           {records.map((record) => (
             <li key={record.ply}>
               <span>{record.notation}</span>
+              <span className="modal-log-meta">
+                <strong>{formatClockDuration(record.elapsedMs)}</strong>
+              </span>
               {record.captured.length > 0 ? <strong>{record.captured.length}枚捕獲</strong> : null}
             </li>
           ))}

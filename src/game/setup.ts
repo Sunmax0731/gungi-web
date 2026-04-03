@@ -1,4 +1,5 @@
 import { createEmptyBoard, getStack, mirrorCoord } from './board';
+import { createInitialClock } from './clock';
 import { getRuleset } from './rulesets';
 import {
   type Board,
@@ -93,6 +94,7 @@ export function createInitialGame(rulesetId: RulesetId = 'beginner'): GameState 
     victoryReason: null,
     moveNumber: 1,
     history: [],
+    clock: createInitialClock(timestamp),
     createdAt: timestamp,
     updatedAt: timestamp,
   };

@@ -7,10 +7,11 @@ interface GameResultDialogProps {
   winner: Player;
   winnerLabel: string;
   reason: VictoryReason | null;
+  elapsedLabel: string;
   onClose: () => void;
 }
 
-export function GameResultDialog({ winner, winnerLabel, reason, onClose }: GameResultDialogProps) {
+export function GameResultDialog({ winner, winnerLabel, reason, elapsedLabel, onClose }: GameResultDialogProps) {
   const closeButtonRef = useRef<HTMLButtonElement>(null);
 
   return (
@@ -31,6 +32,7 @@ export function GameResultDialog({ winner, winnerLabel, reason, onClose }: GameR
           {winnerLabel}の勝ち
         </strong>
         <p className="modal-lead">勝因: {victoryReasonText(reason)}</p>
+        <p className="modal-lead">対局時間: {elapsedLabel}</p>
       </div>
     </ModalDialog>
   );
