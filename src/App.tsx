@@ -99,6 +99,7 @@ function App() {
   const initialGame = useMemo(() => loadSavedGame() ?? createInitialGame('beginner'), []);
   const [game, setGame] = useState(initialGame);
   const [matchMode, setMatchMode] = useState<MatchMode>('human-vs-cpu');
+  const [autoMatchPaused, setAutoMatchPaused] = useState(false);
   const [pendingRulesetId, setPendingRulesetId] = useState<RulesetId>(initialGame.rulesetId);
   const [cpuLevel, setCpuLevel] = useState<CpuLevel>('normal');
   const [selectedSquare, setSelectedSquare] = useState<Coord | null>(null);
@@ -115,7 +116,7 @@ function App() {
   const cpuService = useMemo(() => createCpuService(), []);
 
   const autoMatch = matchMode === 'cpu-vs-cpu';
-  const thinking = !game.winner && (autoMatch || game.turn === CPU_PLAYER);
+  const thinking = !game.winner && (autoMatch ? !autoMatchPaused : game.turn === CPU_PLAYER);
   const ruleset = getRuleset(game.rulesetId);
   const legalMoves = useMemo(() => generateLegalMoves(game), [game]);
   const latestMoves = useMemo(() => [...game.history].reverse(), [game.history]);
@@ -140,6 +141,8 @@ function App() {
   const southLabel = getParticipantLabel(HUMAN_PLAYER, matchMode);
   const northLabel = getParticipantLabel(CPU_PLAYER, matchMode);
   const cpuThoughtTitle = `${getParticipantLabel(cpuThoughtPlayer ?? game.turn, matchMode)}の思考ログ`;
+  const pauseButtonLabel = autoMatchPaused ? '再開' : '一時停止';
+  const pauseButtonDisabled = !autoMatch || !!game.winner;
 
   const selectedMoves = useMemo(() => {
     if (selectedSquare && game.phase === 'battle') {
@@ -190,6 +193,14 @@ function App() {
       };
     }
 
+    if (autoMatchPaused) {
+      return {
+        tone: 'paused',
+        title: '自動対局を一時停止中',
+        detail: `再開すると ${getParticipantLabel(game.turn, matchMode)} の思考を続行します。`,
+      };
+    }
+
     if (thinking) {
       return {
         tone: 'thinking',
@@ -214,7 +225,7 @@ function App() {
       title: `${getParticipantLabel(game.turn, matchMode)}の手番`,
       detail: selectionSummary,
     };
-  }, [autoMatch, game.phase, game.turn, game.victoryReason, game.winner, matchMode, selectionSummary, thinking]);
+  }, [autoMatch, autoMatchPaused, game.phase, game.turn, game.victoryReason, game.winner, matchMode, selectionSummary, thinking]);
 
   useEffect(() => {
     saveGame(game);
@@ -419,6 +430,7 @@ function App() {
       setMatchMode(mode);
       setGame(createInitialGame(pendingRulesetId));
     });
+    setAutoMatchPaused(false);
     setCpuThoughts([]);
     setCpuThoughtPlayer(null);
     clearSelectionState();
@@ -436,6 +448,14 @@ function App() {
   const removeSavedGame = () => {
     clearSavedGame();
     setErrorMessage('ローカル保存データを削除しました。');
+  };
+
+  const toggleAutoMatchPaused = () => {
+    if (!autoMatch || game.winner) {
+      return;
+    }
+
+    setAutoMatchPaused((current) => !current);
   };
 
   const openRuleGuide = () => {
@@ -634,9 +654,10 @@ function App() {
                 onSquareClick={handleSquareClick}
               />
             </Suspense>
-            {autoMatch && cpuThoughts.length > 0 ? (
+            {autoMatch && (cpuThoughts.length > 0 || autoMatchPaused) ? (
               <div className="board-overlay">
                 <p className="board-overlay-kicker">{cpuThoughtTitle}</p>
+                {autoMatchPaused ? <p className="board-overlay-state">一時停止中</p> : null}
                 <div className="board-overlay-log">
                   {cpuThoughts.map((thought, index) => (
                     <div key={`${thought.stage}-${index}`} className="board-overlay-entry">
@@ -676,6 +697,14 @@ function App() {
                 </label>
                 <button type="button" className="settings-button" onClick={() => openConfirmDialog('auto-match')}>
                   自動対局
+                </button>
+                <button
+                  type="button"
+                  className="settings-button pause-button"
+                  disabled={pauseButtonDisabled}
+                  onClick={toggleAutoMatchPaused}
+                >
+                  {pauseButtonLabel}
                 </button>
                 {game.phase === 'setup' ? (
                   <button
