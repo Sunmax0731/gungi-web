@@ -1,8 +1,18 @@
-import { startTransition, useEffect, useMemo, useState } from 'react';
+import { startTransition, useEffect, useMemo, useState, useSyncExternalStore } from 'react';
 import { getMatchElapsedMs, pauseGameClock, resumeGameClock } from '../game/clock';
 import { applyMove } from '../game/engine';
 import { applySetupTemplate, createInitialGame } from '../game/setup';
-import { clearSavedGame, saveGame } from '../game/storage';
+import {
+  clearSavedGame,
+  deleteGameFromSlot,
+  exportGameState,
+  getSaveBrowserSnapshot,
+  importGameState,
+  loadGameFromSlot,
+  saveGame,
+  saveGameToSlot,
+  subscribeStorage,
+} from '../game/storage';
 import { type CpuLevel, type GameMove, type GameState, type Player, type RulesetId, type SetupTemplateId } from '../game/types';
 
 export type MatchMode = 'human-vs-cpu' | 'cpu-vs-cpu';
@@ -26,6 +36,7 @@ export function useMatchSession({ initialGame }: UseMatchSessionOptions) {
   const [autoMatchCpuLevels, setAutoMatchCpuLevels] = useState<Record<Player, CpuLevel>>(DEFAULT_AUTO_CPU_LEVELS);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [clockNow, setClockNow] = useState(() => new Date().toISOString());
+  const saveBrowserState = useSyncExternalStore(subscribeStorage, getSaveBrowserSnapshot, getSaveBrowserSnapshot);
 
   useEffect(() => {
     saveGame(game);
@@ -47,6 +58,17 @@ export function useMatchSession({ initialGame }: UseMatchSessionOptions) {
 
   const autoMatch = matchMode === 'cpu-vs-cpu';
   const matchElapsedMs = useMemo(() => getMatchElapsedMs(game, clockNow), [clockNow, game]);
+
+  const restoreGame = (nextGame: GameState) => {
+    startTransition(() => {
+      setGame(nextGame);
+      setMatchMode('human-vs-cpu');
+      setPendingRulesetId(nextGame.rulesetId);
+      setSetupTemplateId(nextGame.setupTemplateId ?? 'manual');
+    });
+    setAutoMatchPaused(false);
+    setErrorMessage(null);
+  };
 
   const executeMove = (move: GameMove) => {
     try {
@@ -76,6 +98,31 @@ export function useMatchSession({ initialGame }: UseMatchSessionOptions) {
     setErrorMessage('保存データをブラウザから削除しました。');
   };
 
+  const saveCurrentGameToSlot = (slotId: string) => {
+    const summary = saveGameToSlot(slotId, game);
+    setErrorMessage(`${summary.label} に保存しました。`);
+  };
+
+  const loadSelectedGame = (slotId: string) => {
+    const savedGame = loadGameFromSlot(slotId);
+    if (!savedGame) {
+      setErrorMessage('指定した保存スロットに対局データがありません。');
+      return;
+    }
+
+    restoreGame(savedGame);
+  };
+
+  const deleteSelectedSave = (slotId: string) => {
+    deleteGameFromSlot(slotId);
+    setErrorMessage('保存スロットを削除しました。');
+  };
+
+  const importSavedGame = (raw: string) => {
+    const imported = importGameState(raw);
+    restoreGame(imported);
+  };
+
   const toggleAutoMatchPaused = () => {
     if (!autoMatch || game.winner) {
       return;
@@ -102,15 +149,22 @@ export function useMatchSession({ initialGame }: UseMatchSessionOptions) {
     autoMatch,
     autoMatchCpuLevels,
     autoMatchPaused,
+    autosaveSummary: saveBrowserState.autosaveSummary,
     clockNow,
     cpuLevel,
+    deleteSelectedSave,
     errorMessage,
     executeMove,
+    exportCurrentGameState: () => exportGameState(game),
     game,
+    importSavedGame,
+    loadSelectedGame,
     matchElapsedMs,
     matchMode,
     pendingRulesetId,
     removeSavedGame,
+    saveCurrentGameToSlot,
+    saveSlots: saveBrowserState.saveSlots,
     setAutoMatchCpuLevels,
     setCpuLevel,
     setErrorMessage,

@@ -6,6 +6,7 @@ import {
   moveActionLabel,
   type RuleGuideId,
 } from './app/gameUi';
+import { coordLabel } from './game/board';
 import { HandTray, type TrayItemState } from './components/HandTray';
 import { PieceInsightCard } from './components/PieceInsightCard';
 import { ConfirmDialog } from './components/dialogs/ConfirmDialog';
@@ -13,29 +14,37 @@ import { GameResultDialog } from './components/dialogs/GameResultDialog';
 import { MatchLogDialog } from './components/dialogs/MatchLogDialog';
 import { RuleGuideDialog } from './components/dialogs/RuleGuideDialog';
 import { createCpuService } from './game/cpu-service';
-import {
-  createReadyMove,
-  createResignMove,
-  findMarshalCoord,
-  generateLegalMoves,
-  isMarshalThreatened,
-} from './game/engine';
+import { createReadyMove, createResignMove, findMarshalCoord, generateLegalMoves, isMarshalThreatened } from './game/engine';
 import { getPieceDefinition } from './game/pieces';
 import { getRuleset } from './game/rulesets';
 import { createInitialGame } from './game/setup';
 import { loadSavedGame } from './game/storage';
 import { type GameMove, type Player } from './game/types';
+import { BoardGrid } from './components/BoardGrid';
 import { useCpuTurn } from './hooks/useCpuTurn';
 import { type ConfirmActionId, useDialogState } from './hooks/useDialogState';
 import { useFirstPlayGuide } from './hooks/useFirstPlayGuide';
 import { useMatchSession } from './hooks/useMatchSession';
+import { usePlayerHint } from './hooks/usePlayerHint';
 import { useReplayState } from './hooks/useReplayState';
 import { useSelectionState } from './hooks/useSelectionState';
+import { SaveManagerDialog } from './components/dialogs/SaveManagerDialog';
 
 const HUMAN_PLAYER: Player = 'south';
+type BoardViewMode = '3d' | '2d';
+type BoardCameraMode = 'free' | 'fixed';
+type BoardRenderQuality = 'quality' | 'lite';
 const BoardScene = lazy(() =>
   import('./components/BoardScene').then((module) => ({ default: module.BoardScene })),
 );
+
+function getDefaultBoardViewMode(): BoardViewMode {
+  if (typeof window !== 'undefined' && window.matchMedia('(max-width: 960px)').matches) {
+    return '2d';
+  }
+
+  return '3d';
+}
 
 function formatThoughtDuration(elapsedMs: number): string {
   if (elapsedMs < 1_000) {
@@ -76,6 +85,25 @@ function getMoveButtonLabel(move: GameMove): string {
   }
 
   return `${getPieceDefinition(move.pieceKind).label} ${moveActionLabel(move)}`;
+}
+
+function getHintMoveLabel(move: GameMove | null): string {
+  if (!move) {
+    return '合法手がありません。';
+  }
+
+  if (move.type === 'ready' || move.type === 'resign') {
+    return moveActionLabel(move);
+  }
+
+  const pieceLabel = getPieceDefinition(move.pieceKind).label;
+  const to = coordLabel(move.to);
+
+  if (move.type === 'drop' || move.type === 'deploy') {
+    return `${pieceLabel} ${moveActionLabel(move)} ${to}`;
+  }
+
+  return `${pieceLabel} ${coordLabel(move.from)}→${to} ${moveActionLabel(move)}`;
 }
 
 function getMarshalStatus(
@@ -176,6 +204,13 @@ function App() {
   const [activeRuleGuideId, setActiveRuleGuideId] = useState<RuleGuideId>(() =>
     getDefaultRuleGuideId(initialGame.rulesetId),
   );
+  const [boardViewMode, setBoardViewMode] = useState<BoardViewMode>(() => getDefaultBoardViewMode());
+  const [boardCameraMode, setBoardCameraMode] = useState<BoardCameraMode>('free');
+  const [boardRenderQuality, setBoardRenderQuality] = useState<BoardRenderQuality>('quality');
+  const [hintEnabled, setHintEnabled] = useState(false);
+  const [saveExportText, setSaveExportText] = useState('');
+  const [saveImportText, setSaveImportText] = useState('');
+  const [saveImportError, setSaveImportError] = useState<string | null>(null);
   const cpuService = useMemo(() => createCpuService(), []);
 
   const session = useMatchSession({ initialGame });
@@ -215,6 +250,21 @@ function App() {
     humanPlayer: HUMAN_PLAYER,
     onError: session.setErrorMessage,
     setGame: session.setGame,
+  });
+  const hintBlockedReason =
+    replay.isReplaying
+      ? 'リプレイ表示中はヒントを停止します。'
+      : session.autoMatch
+        ? '自動対局ではヒントを使用しません。'
+        : session.game.winner
+          ? '終局後はヒントを停止します。'
+          : session.game.turn !== HUMAN_PLAYER
+            ? 'CPU の手番ではヒントを表示しません。'
+            : null;
+  const hint = usePlayerHint({
+    enabled: hintEnabled && !hintBlockedReason,
+    game: session.game,
+    level: session.cpuLevel,
   });
   const clearSelectionForReplay = useEffectEvent(() => {
     selection.clearSelectionState();
@@ -393,9 +443,9 @@ function App() {
             tone: 'danger' as const,
           },
           'clear-save': {
-            title: '保存データを削除しますか？',
-            message: 'ブラウザに保存されている対局データを削除します。',
-            confirmLabel: '保存データを削除',
+            title: '保存データをすべて削除しますか？',
+            message: '自動保存と保存スロットのデータをまとめて削除します。',
+            confirmLabel: '保存データをすべて削除',
             tone: 'danger' as const,
           },
           ready: {
@@ -417,6 +467,43 @@ function App() {
   const openRuleGuide = () => {
     setActiveRuleGuideId(getDefaultRuleGuideId(session.game.rulesetId));
     dialog.openRuleDialog();
+  };
+
+  const openSaveManager = () => {
+    setSaveImportError(null);
+    setSaveImportText('');
+    setSaveExportText(session.exportCurrentGameState());
+    dialog.openSaveManagerDialog();
+  };
+
+  const handleCopyExport = async () => {
+    try {
+      await navigator.clipboard.writeText(saveExportText);
+      session.setErrorMessage('エクスポート文字列をコピーしました。');
+    } catch {
+      session.setErrorMessage('エクスポート文字列をコピーできませんでした。');
+    }
+  };
+
+  const handleLoadFromSlot = (slotId: string) => {
+    replay.jumpToLatest();
+    selection.clearSelectionState();
+    cpu.resetThoughts();
+    session.loadSelectedGame(slotId);
+    dialog.closeDialog();
+  };
+
+  const handleImportSavedGame = () => {
+    try {
+      replay.jumpToLatest();
+      selection.clearSelectionState();
+      cpu.resetThoughts();
+      session.importSavedGame(saveImportText);
+      setSaveImportError(null);
+      dialog.closeDialog();
+    } catch (error) {
+      setSaveImportError(error instanceof Error ? error.message : 'インポートに失敗しました。');
+    }
   };
 
   const handleConfirmAction = (action: ConfirmActionId) => {
@@ -566,14 +653,25 @@ function App() {
 
         <main className="board-panel">
           <section className="board-frame board-frame-plain">
-            <Suspense fallback={<div className="board-loading">3D盤面を読み込み中...</div>}>
-              <BoardScene
+            {boardViewMode === '3d' ? (
+              <Suspense fallback={<div className="board-loading">3D盤面を読み込み中...</div>}>
+                <BoardScene
+                  cameraMode={boardCameraMode}
+                  renderQuality={boardRenderQuality}
+                  state={displayState}
+                  selectedSquare={replay.isReplaying ? null : selection.selectedSquare}
+                  highlightedMoves={replay.isReplaying ? [] : selection.selectedMoves}
+                  onSquareClick={replay.isReplaying ? () => undefined : selection.handleSquareClick}
+                />
+              </Suspense>
+            ) : (
+              <BoardGrid
                 state={displayState}
                 selectedSquare={replay.isReplaying ? null : selection.selectedSquare}
                 highlightedMoves={replay.isReplaying ? [] : selection.selectedMoves}
                 onSquareClick={replay.isReplaying ? () => undefined : selection.handleSquareClick}
               />
-            </Suspense>
+            )}
 
             {session.autoMatch && !replay.isReplaying && (cpu.cpuThoughts.length > 0 || session.autoMatchPaused) ? (
               <div className="board-overlay">
@@ -635,6 +733,53 @@ function App() {
                     <option value="easy">初級</option>
                     <option value="normal">標準</option>
                     <option value="hard">上級</option>
+                  </select>
+                </label>
+
+                <label className="control-group settings-field">
+                  <span>盤面表示</span>
+                  <select
+                    data-testid="board-view-mode"
+                    value={boardViewMode}
+                    onChange={(event) => setBoardViewMode(event.target.value as BoardViewMode)}
+                  >
+                    <option value="3d">3D盤面</option>
+                    <option value="2d">2D盤面</option>
+                  </select>
+                </label>
+
+                <label className="control-group settings-field">
+                  <span>3D カメラ</span>
+                  <select
+                    value={boardCameraMode}
+                    disabled={boardViewMode !== '3d'}
+                    onChange={(event) => setBoardCameraMode(event.target.value as BoardCameraMode)}
+                  >
+                    <option value="free">自由カメラ</option>
+                    <option value="fixed">固定カメラ</option>
+                  </select>
+                </label>
+
+                <label className="control-group settings-field">
+                  <span>描画品質</span>
+                  <select
+                    value={boardRenderQuality}
+                    onChange={(event) => setBoardRenderQuality(event.target.value as BoardRenderQuality)}
+                  >
+                    <option value="quality">高品質</option>
+                    <option value="lite">軽量</option>
+                  </select>
+                </label>
+
+                <label className="control-group settings-field">
+                  <span>解析ヒント</span>
+                  <select
+                    data-testid="hint-mode"
+                    value={hintEnabled ? 'on' : 'off'}
+                    onChange={(event) => setHintEnabled(event.target.value === 'on')}
+                  >
+                    <option value="off">オフ</option>
+                    <option value="on">オン</option>
                   </select>
                 </label>
 
@@ -719,8 +864,13 @@ function App() {
                 >
                   新しい対局
                 </button>
-                <button type="button" className="settings-button secondary" onClick={() => dialog.openConfirmDialog('clear-save')}>
-                  保存削除
+                <button
+                  type="button"
+                  className="settings-button secondary"
+                  data-testid="open-save-manager"
+                  onClick={openSaveManager}
+                >
+                  保存管理
                 </button>
                 {session.game.phase === 'battle' ? (
                   <button
@@ -747,6 +897,43 @@ function App() {
             rulesetId={session.game.rulesetId}
             title="選択中の駒"
           />
+
+          <section className="card hint-card">
+            <div className="section-heading">
+              <h2>解析ヒント</h2>
+              <button type="button" className="rule-button" data-testid="toggle-hint" onClick={() => setHintEnabled((current) => !current)}>
+                {hintEnabled ? '停止' : '開始'}
+              </button>
+            </div>
+
+            {!hintEnabled ? (
+              <p className="muted">設定またはこのカードからヒントをオンにすると、おすすめの一手を表示します。</p>
+            ) : hintBlockedReason ? (
+              <p className="muted">{hintBlockedReason}</p>
+            ) : hint.hintError ? (
+              <p className="error-text">{hint.hintError}</p>
+            ) : hint.hintLoading ? (
+              <>
+                <div className="status-banner thinking">
+                  <strong>解析中</strong>
+                  <span>{hint.hintThought?.message ?? '候補手を探索しています。'}</span>
+                </div>
+                <p className="section-note">
+                  {hint.hintThought?.detail ?? 'CPU と同じロジックでおすすめの一手を計算しています。'} / {formatThoughtDuration(hint.hintElapsedMs)}
+                </p>
+              </>
+            ) : (
+              <>
+                <div className="status-banner active">
+                  <strong>おすすめの一手</strong>
+                  <span data-testid="hint-text">{getHintMoveLabel(hint.hintMove)}</span>
+                </div>
+                <p className="section-note">
+                  難易度 {cpuLevelText(session.cpuLevel)} 相当の読み筋です。2D盤面と合わせるとキーボード操作でも確認できます。
+                </p>
+              </>
+            )}
+          </section>
 
           <section className="card action-card">
             <h2>選択可能な行動</h2>
@@ -799,6 +986,30 @@ function App() {
           onSelectPly={replay.startReplayAt}
           onStepBackward={replay.stepBackward}
           onStepForward={replay.stepForward}
+        />
+      ) : null}
+
+      {dialog.dialogState?.type === 'save-manager' ? (
+        <SaveManagerDialog
+          autosaveSummary={session.autosaveSummary}
+          exportText={saveExportText}
+          importError={saveImportError}
+          importText={saveImportText}
+          onChangeImportText={(value) => setSaveImportText(value)}
+          onClearAll={() => {
+            dialog.closeDialog();
+            dialog.openConfirmDialog('clear-save');
+          }}
+          onClose={dialog.closeDialog}
+          onCopyExport={() => {
+            void handleCopyExport();
+          }}
+          onDeleteSlot={session.deleteSelectedSave}
+          onImport={handleImportSavedGame}
+          onLoadSlot={handleLoadFromSlot}
+          onRefreshExport={() => setSaveExportText(session.exportCurrentGameState())}
+          onSaveSlot={(slotId) => session.saveCurrentGameToSlot(slotId)}
+          slots={session.saveSlots}
         />
       ) : null}
 

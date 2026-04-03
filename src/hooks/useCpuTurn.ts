@@ -22,7 +22,7 @@ interface UseCpuTurnOptions {
 }
 
 function appendCpuThought(thoughts: CpuThoughtEntry[], thought: CpuThought, elapsedMs: number): CpuThoughtEntry[] {
-  return [...thoughts, { thought, elapsedMs }].slice(-5);
+  return [...thoughts, { thought, elapsedMs }].slice(-8);
 }
 
 export function useCpuTurn({

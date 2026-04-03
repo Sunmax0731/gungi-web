@@ -612,7 +612,8 @@ select:hover,
 }
 
 .board-frame-plain .board-canvas,
-.board-frame-plain .board-loading {
+.board-frame-plain .board-loading,
+.board-frame-plain .board-grid-shell {
   min-height: 450px;
   height: min(53svh, 632px);
 }
@@ -632,6 +633,184 @@ select:hover,
   border-radius: 24px;
   background: linear-gradient(180deg, rgba(20, 27, 22, 0.92), rgba(10, 13, 10, 0.98));
   color: #f8f8f2;
+}
+
+.board-grid-shell {
+  display: grid;
+  gap: 0.4rem;
+  padding: 0.72rem;
+  border-radius: 22px;
+  background:
+    radial-gradient(circle at top left, rgba(88, 72, 45, 0.22), transparent 34%),
+    linear-gradient(180deg, rgba(24, 20, 18, 0.94), rgba(12, 10, 9, 0.98));
+  box-shadow:
+    inset 0 0 0 1px rgba(255, 255, 255, 0.06),
+    0 18px 36px rgba(15, 18, 15, 0.2);
+}
+
+.board-grid-layout {
+  display: grid;
+  grid-template-columns: 1.2rem minmax(0, 1fr);
+  gap: 0.36rem;
+  min-height: 0;
+}
+
+.board-grid-label-row,
+.board-grid-label-column {
+  display: grid;
+  color: var(--md-on-surface-variant);
+  font-size: 0.7rem;
+  font-weight: 700;
+}
+
+.board-grid-label-row {
+  grid-template-columns: repeat(9, minmax(0, 1fr));
+  gap: 0.22rem;
+  padding-left: calc(1.2rem + 0.36rem);
+}
+
+.board-grid-label-column {
+  grid-template-rows: repeat(9, minmax(0, 1fr));
+  gap: 0.22rem;
+}
+
+.board-grid-label-row span,
+.board-grid-label-column span {
+  display: grid;
+  place-items: center;
+}
+
+.board-grid {
+  display: grid;
+  grid-template-columns: repeat(9, minmax(0, 1fr));
+  gap: 0.22rem;
+}
+
+.board-grid-cell {
+  position: relative;
+  display: grid;
+  gap: 0.12rem;
+  justify-items: start;
+  min-height: 0;
+  aspect-ratio: 1;
+  padding: 0.32rem;
+  border: 1px solid rgba(124, 119, 111, 0.16);
+  border-radius: 16px;
+  background:
+    linear-gradient(180deg, rgba(71, 55, 39, 0.95), rgba(49, 39, 30, 0.94)),
+    var(--md-surface-container);
+  color: var(--md-on-surface);
+  text-align: left;
+  box-shadow:
+    inset 0 0 0 1px rgba(255, 255, 255, 0.04),
+    0 8px 16px rgba(0, 0, 0, 0.16);
+  transition:
+    transform 180ms ease,
+    box-shadow 180ms ease,
+    border-color 180ms ease,
+    background-color 180ms ease;
+}
+
+.board-grid-cell:hover {
+  transform: translateY(-1px);
+  box-shadow:
+    inset 0 0 0 1px rgba(255, 255, 255, 0.06),
+    0 10px 20px rgba(0, 0, 0, 0.2);
+}
+
+.board-grid-cell.selected {
+  border-color: rgba(255, 242, 178, 0.82);
+  box-shadow:
+    inset 0 0 0 1px rgba(255, 242, 178, 0.22),
+    0 12px 24px rgba(255, 242, 178, 0.12);
+}
+
+.board-grid-cell.owner-south {
+  background: linear-gradient(180deg, rgba(84, 64, 42, 0.96), rgba(59, 44, 30, 0.92));
+}
+
+.board-grid-cell.owner-north {
+  background: linear-gradient(180deg, rgba(54, 62, 72, 0.96), rgba(36, 42, 50, 0.92));
+}
+
+.board-grid-cell.empty {
+  background: linear-gradient(180deg, rgba(56, 44, 35, 0.88), rgba(39, 31, 26, 0.88));
+}
+
+.board-grid-cell.marker-move,
+.board-grid-cell.marker-drop,
+.board-grid-cell.marker-deploy,
+.board-grid-cell.marker-stack,
+.board-grid-cell.marker-capture,
+.board-grid-cell.marker-betray {
+  border-color: rgba(89, 130, 116, 0.4);
+}
+
+.board-grid-cell.marker-capture {
+  border-color: rgba(241, 95, 84, 0.56);
+}
+
+.board-grid-cell.marker-betray {
+  border-color: rgba(242, 140, 82, 0.56);
+}
+
+.board-grid-cell.marker-stack {
+  border-color: rgba(242, 188, 77, 0.56);
+}
+
+.board-grid-cell-coord,
+.board-grid-kind,
+.board-grid-marker,
+.board-grid-stack,
+.board-grid-owner {
+  font-size: 0.66rem;
+  line-height: 1.1;
+}
+
+.board-grid-cell-coord,
+.board-grid-kind {
+  color: var(--md-on-surface-variant);
+}
+
+.board-grid-piece {
+  font-size: 1rem;
+}
+
+.board-grid-owner,
+.board-grid-stack,
+.board-grid-marker {
+  position: absolute;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 1.1rem;
+  padding: 0.08rem 0.28rem;
+  border-radius: 999px;
+  background: rgba(18, 14, 13, 0.82);
+  color: var(--md-on-surface);
+}
+
+.board-grid-owner {
+  top: 0.28rem;
+  right: 0.28rem;
+}
+
+.board-grid-stack {
+  bottom: 0.28rem;
+  right: 0.28rem;
+}
+
+.board-grid-marker {
+  left: 0.28rem;
+  bottom: 0.28rem;
+  background: rgba(54, 86, 78, 0.88);
+}
+
+.board-grid-empty {
+  align-self: center;
+  justify-self: center;
+  color: rgba(234, 214, 173, 0.72);
+  font-size: 1.05rem;
 }
 
 .board-overlay {
@@ -930,6 +1109,11 @@ select:hover,
   min-height: 0;
 }
 
+.modal-panel-wide {
+  width: min(980px, calc(100vw - 2rem));
+  height: min(82svh, 860px);
+}
+
 .modal-sections {
   display: grid;
   gap: 0.64rem;
@@ -1083,6 +1267,59 @@ select:hover,
   padding: 0.74rem;
 }
 
+.save-slot-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.6rem;
+  margin-top: 0.68rem;
+}
+
+.save-slot-card {
+  display: grid;
+  gap: 0.56rem;
+  border-radius: 18px;
+  background: var(--md-surface-container);
+  padding: 0.68rem;
+  box-shadow: inset 0 0 0 1px rgba(124, 119, 111, 0.1);
+}
+
+.save-slot-copy {
+  display: grid;
+  gap: 0.18rem;
+}
+
+.save-slot-copy strong {
+  font-size: 0.88rem;
+}
+
+.save-slot-copy span {
+  color: var(--md-on-surface-variant);
+  font-size: 0.74rem;
+}
+
+.save-slot-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.42rem;
+}
+
+.save-textarea {
+  width: 100%;
+  min-height: 10.5rem;
+  resize: vertical;
+  border: 1px solid rgba(124, 119, 111, 0.16);
+  border-radius: 18px;
+  background: rgba(17, 13, 11, 0.88);
+  color: var(--md-on-surface);
+  padding: 0.82rem;
+  font: 0.8rem/1.45 'Cascadia Code', 'Consolas', monospace;
+}
+
+.save-textarea:focus-visible {
+  outline: 3px solid rgba(53, 94, 85, 0.22);
+  outline-offset: 2px;
+}
+
 .result-winner {
   font-size: 1.28rem;
 }
@@ -1140,7 +1377,8 @@ select:hover,
   }
 
   .board-frame-plain .board-canvas,
-  .board-frame-plain .board-loading {
+  .board-frame-plain .board-loading,
+  .board-frame-plain .board-grid-shell {
     min-height: 378px;
     height: 48svh;
   }
@@ -1166,6 +1404,10 @@ select:hover,
   .stats-grid,
   .threat-grid,
   .status-meta-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .save-slot-grid {
     grid-template-columns: 1fr;
   }
 
@@ -1206,5 +1448,27 @@ select:hover,
 
   .movement-grid {
     gap: 0.12rem;
+  }
+
+  .board-grid-shell {
+    padding: 0.5rem;
+  }
+
+  .board-grid-layout {
+    grid-template-columns: 1rem minmax(0, 1fr);
+    gap: 0.24rem;
+  }
+
+  .board-grid-label-row {
+    padding-left: calc(1rem + 0.24rem);
+  }
+
+  .board-grid-cell {
+    padding: 0.24rem;
+    border-radius: 12px;
+  }
+
+  .board-grid-piece {
+    font-size: 0.86rem;
   }
 }

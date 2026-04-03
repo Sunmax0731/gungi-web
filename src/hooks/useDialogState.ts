@@ -7,6 +7,7 @@ export type ConfirmActionId = 'new-game' | 'auto-match' | 'clear-save' | 'ready'
 export type DialogState =
   | { type: 'rules' }
   | { type: 'log' }
+  | { type: 'save-manager' }
   | { type: 'confirm'; action: ConfirmActionId }
   | { type: 'result'; winner: Player; reason: VictoryReason | null }
   | null;
@@ -47,6 +48,7 @@ export function useDialogState({ updatedAt, winner, victoryReason }: UseDialogSt
     closeDialog: () => setDialogState(null),
     openLogDialog: () => setDialogState({ type: 'log' as const }),
     openRuleDialog: () => setDialogState({ type: 'rules' as const }),
+    openSaveManagerDialog: () => setDialogState({ type: 'save-manager' as const }),
     openConfirmDialog: (action: ConfirmActionId) => setDialogState({ type: 'confirm', action }),
     setDialogState,
   };

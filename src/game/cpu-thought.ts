@@ -3,6 +3,8 @@ export type CpuThoughtStage =
   | 'setup'
   | 'legal'
   | 'evaluate'
+  | 'order'
+  | 'depth'
   | 'search'
   | 'select'
   | 'done';

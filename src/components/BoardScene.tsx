@@ -13,6 +13,8 @@ const PIECE_STACK_STEP = 0.2;
 const MOVE_ANIMATION_MS = 280;
 
 interface BoardSceneProps {
+  cameraMode: 'free' | 'fixed';
+  renderQuality: 'quality' | 'lite';
   state: GameState;
   selectedSquare: Coord | null;
   highlightedMoves: GameMove[];
@@ -144,6 +146,8 @@ function AnimatedPiece({ animation, progress }: AnimatedPieceProps) {
 }
 
 export function BoardScene({
+  cameraMode,
+  renderQuality,
   state,
   selectedSquare,
   highlightedMoves,
@@ -223,20 +227,24 @@ export function BoardScene({
     >
       <Canvas
         camera={{ position: [0, 8.15, 6.55], fov: 40 }}
-        gl={{ antialias: true, powerPreference: 'high-performance' }}
-        shadows={{ type: THREE.PCFShadowMap }}
+        dpr={renderQuality === 'quality' ? [1, 2] : 1}
+        gl={{
+          antialias: renderQuality === 'quality',
+          powerPreference: renderQuality === 'quality' ? 'high-performance' : 'low-power',
+        }}
+        shadows={renderQuality === 'quality' ? { type: THREE.PCFShadowMap } : false}
       >
         <color attach="background" args={['#131610']} />
-        <fog attach="fog" args={['#131610', 10, 21]} />
-        <ambientLight intensity={1.2} />
+        {renderQuality === 'quality' ? <fog attach="fog" args={['#131610', 10, 21]} /> : null}
+        <ambientLight intensity={renderQuality === 'quality' ? 1.2 : 1.05} />
         <directionalLight
-          castShadow
-          intensity={1.9}
+          castShadow={renderQuality === 'quality'}
+          intensity={renderQuality === 'quality' ? 1.9 : 1.45}
           position={[8, 11, 5]}
-          shadow-mapSize-width={2048}
-          shadow-mapSize-height={2048}
+          shadow-mapSize-width={renderQuality === 'quality' ? 2048 : 1024}
+          shadow-mapSize-height={renderQuality === 'quality' ? 2048 : 1024}
         />
-        <pointLight intensity={0.7} position={[-6, 5, -4]} color="#b8f0d8" />
+        {renderQuality === 'quality' ? <pointLight intensity={0.7} position={[-6, 5, -4]} color="#b8f0d8" /> : null}
         <mesh position={[0, -0.45, 0]} receiveShadow>
           <boxGeometry args={[11.5, 0.65, 11.5]} />
           <meshStandardMaterial color="#43301f" roughness={0.88} />
@@ -335,19 +343,21 @@ export function BoardScene({
           );
         })}
 
-        <OrbitControls
-          enablePan={false}
-          maxDistance={12.8}
-          maxPolarAngle={1.14}
-          minDistance={6.2}
-          minPolarAngle={0.68}
-          mouseButtons={{
-            LEFT: THREE.MOUSE.ROTATE,
-            MIDDLE: THREE.MOUSE.DOLLY,
-            RIGHT: THREE.MOUSE.ROTATE,
-          }}
-          target={[0, 0.08, -0.36]}
-        />
+        {cameraMode === 'free' ? (
+          <OrbitControls
+            enablePan={false}
+            maxDistance={12.8}
+            maxPolarAngle={1.14}
+            minDistance={6.2}
+            minPolarAngle={0.68}
+            mouseButtons={{
+              LEFT: THREE.MOUSE.ROTATE,
+              MIDDLE: THREE.MOUSE.DOLLY,
+              RIGHT: THREE.MOUSE.ROTATE,
+            }}
+            target={[0, 0.08, -0.36]}
+          />
+        ) : null}
       </Canvas>
     </div>
   );
