@@ -57,8 +57,25 @@ type DialogState =
   | { type: 'result'; winner: Player; reason: VictoryReason | null }
   | null;
 
+interface CpuThoughtEntry {
+  thought: CpuThought;
+  elapsedMs: number;
+}
+
 function isTargetMove(move: GameMove): move is Exclude<GameMove, { type: 'ready' } | { type: 'resign' }> {
   return 'to' in move;
+}
+
+function formatElapsedMs(elapsedMs: number): string {
+  if (elapsedMs < 1_000) {
+    return `${Math.round(elapsedMs)}ms`;
+  }
+
+  if (elapsedMs < 10_000) {
+    return `${(elapsedMs / 1_000).toFixed(1)}秒`;
+  }
+
+  return `${Math.round(elapsedMs / 1_000)}秒`;
 }
 
 function getMarshalStatus(
@@ -90,8 +107,8 @@ function getParticipantLabel(player: Player, mode: MatchMode): string {
   return player === HUMAN_PLAYER ? 'あなた' : 'CPU';
 }
 
-function appendCpuThought(thoughts: CpuThought[], thought: CpuThought): CpuThought[] {
-  const nextThoughts = [...thoughts, thought];
+function appendCpuThought(thoughts: CpuThoughtEntry[], thought: CpuThought, elapsedMs: number): CpuThoughtEntry[] {
+  const nextThoughts = [...thoughts, { thought, elapsedMs }];
   return nextThoughts.slice(-5);
 }
 
@@ -105,8 +122,10 @@ function App() {
   const [selectedSquare, setSelectedSquare] = useState<Coord | null>(null);
   const [selectedHandKind, setSelectedHandKind] = useState<PieceKind | null>(null);
   const [pendingActions, setPendingActions] = useState<GameMove[]>([]);
-  const [cpuThoughts, setCpuThoughts] = useState<CpuThought[]>([]);
+  const [cpuThoughts, setCpuThoughts] = useState<CpuThoughtEntry[]>([]);
   const [cpuThoughtPlayer, setCpuThoughtPlayer] = useState<Player | null>(null);
+  const [cpuThoughtStartedAt, setCpuThoughtStartedAt] = useState<number | null>(null);
+  const [cpuThoughtElapsedMs, setCpuThoughtElapsedMs] = useState(0);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [dialogState, setDialogState] = useState<DialogState>(null);
   const [activeRuleGuideId, setActiveRuleGuideId] = useState<RuleGuideId>(() =>
@@ -141,6 +160,7 @@ function App() {
   const southLabel = getParticipantLabel(HUMAN_PLAYER, matchMode);
   const northLabel = getParticipantLabel(CPU_PLAYER, matchMode);
   const cpuThoughtTitle = `${getParticipantLabel(cpuThoughtPlayer ?? game.turn, matchMode)}の思考ログ`;
+  const cpuThoughtElapsedLabel = formatElapsedMs(cpuThoughtElapsedMs);
   const pauseButtonLabel = autoMatchPaused ? '再開' : '一時停止';
   const pauseButtonDisabled = !autoMatch || !!game.winner;
 
@@ -259,6 +279,20 @@ function App() {
   }, [game.updatedAt, game.victoryReason, game.winner]);
 
   useEffect(() => {
+    if (!thinking || cpuThoughtStartedAt === null) {
+      return;
+    }
+
+    const timer = window.setInterval(() => {
+      setCpuThoughtElapsedMs(performance.now() - cpuThoughtStartedAt);
+    }, 100);
+
+    return () => {
+      window.clearInterval(timer);
+    };
+  }, [cpuThoughtStartedAt, thinking]);
+
+  useEffect(() => {
     if (!thinking) {
       return;
     }
@@ -267,6 +301,9 @@ function App() {
     const timer = window.setTimeout(() => {
       setCpuThoughtPlayer(game.turn);
       setCpuThoughts([]);
+      const startedAt = performance.now();
+      setCpuThoughtStartedAt(startedAt);
+      setCpuThoughtElapsedMs(0);
 
       void cpuService
         .computeMove(game, cpuLevel, (thought) => {
@@ -274,12 +311,16 @@ function App() {
             return;
           }
 
-          setCpuThoughts((current) => appendCpuThought(current, thought));
+          const elapsedMs = performance.now() - startedAt;
+          setCpuThoughtElapsedMs(elapsedMs);
+          setCpuThoughts((current) => appendCpuThought(current, thought, elapsedMs));
         })
         .then((move) => {
           if (cancelled) {
             return;
           }
+
+          setCpuThoughtElapsedMs(performance.now() - startedAt);
 
           startTransition(() => {
             setGame((current) => {
@@ -433,6 +474,8 @@ function App() {
     setAutoMatchPaused(false);
     setCpuThoughts([]);
     setCpuThoughtPlayer(null);
+    setCpuThoughtStartedAt(null);
+    setCpuThoughtElapsedMs(0);
     clearSelectionState();
     setErrorMessage(null);
   };
@@ -656,13 +699,19 @@ function App() {
             </Suspense>
             {autoMatch && (cpuThoughts.length > 0 || autoMatchPaused) ? (
               <div className="board-overlay">
-                <p className="board-overlay-kicker">{cpuThoughtTitle}</p>
+                <div className="board-overlay-header">
+                  <p className="board-overlay-kicker">{cpuThoughtTitle}</p>
+                  <p className="board-overlay-meta">{cpuThoughtElapsedLabel}</p>
+                </div>
                 {autoMatchPaused ? <p className="board-overlay-state">一時停止中</p> : null}
                 <div className="board-overlay-log">
-                  {cpuThoughts.map((thought, index) => (
-                    <div key={`${thought.stage}-${index}`} className="board-overlay-entry">
-                      <strong>{thought.message}</strong>
-                      {thought.detail ? <span>{thought.detail}</span> : null}
+                  {cpuThoughts.map((entry, index) => (
+                    <div key={`${entry.thought.stage}-${index}`} className="board-overlay-entry">
+                      <div className="board-overlay-entry-header">
+                        <strong>{entry.thought.message}</strong>
+                        <span className="board-overlay-entry-meta">{formatElapsedMs(entry.elapsedMs)}</span>
+                      </div>
+                      {entry.thought.detail ? <span>{entry.thought.detail}</span> : null}
                     </div>
                   ))}
                 </div>

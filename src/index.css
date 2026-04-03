@@ -505,6 +505,23 @@ select:hover,
   letter-spacing: 0.05em;
 }
 
+.board-overlay-header,
+.board-overlay-entry-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.6rem;
+}
+
+.board-overlay-meta,
+.board-overlay-entry-meta {
+  margin: 0;
+  color: #bca98d;
+  font-size: 0.7rem;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
 .board-overlay-state {
   justify-self: start;
   margin: 0;
