@@ -41,6 +41,16 @@ function reportThought(
   onProgress?.({ stage, message, detail, progress });
 }
 
+function cpuLevelLabel(level: CpuLevel): string {
+  if (level === 'easy') {
+    return '初級';
+  }
+  if (level === 'hard') {
+    return '上級';
+  }
+  return '標準';
+}
+
 function formatMoveSummary(move: GameMove): string {
   if (move.type === 'resign') {
     return '投了';
@@ -376,7 +386,7 @@ export function computeBestMove(
     onProgress,
     'start',
     `${state.turn === 'south' ? '先手CPU' : '後手CPU'} が思考開始`,
-    `${state.phase === 'setup' ? '配置フェーズ' : '対局フェーズ'} / 難度 ${level.toUpperCase()}`,
+    `${state.phase === 'setup' ? '配置フェーズ' : '対局フェーズ'} / 難度 ${cpuLevelLabel(level)}`,
   );
 
   if (state.phase === 'setup') {
