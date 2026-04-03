@@ -15,7 +15,10 @@ npm run dev
 npm run lint
 npm test
 npm run build
+npm run test:e2e
 ```
+
+`test:e2e` launches Playwright against a local Vite server and covers the main UI flow, auto-match progression, and save/restore behavior.
 
 ## Deployment flow
 

@@ -9,6 +9,8 @@ import {
   type Player,
   type Ruleset,
   type RulesetId,
+  type SetupPlacement,
+  type SetupTemplateId,
 } from './types';
 
 function createEmptyHands(ruleset: Ruleset): HandState {
@@ -39,37 +41,58 @@ function consumeHandPiece(hands: HandState, owner: Player, kind: PieceKind) {
   hands[owner][kind] -= 1;
 }
 
-function placeFixedSetup(board: Board, hands: HandState, ruleset: Ruleset) {
-  if (ruleset.setup.kind !== 'fixed') {
-    return;
-  }
-
+function createIdFactory() {
   const counters = new Map<string, number>();
 
-  const nextId = (owner: Player, kind: PieceKind): string => {
+  return (owner: Player, kind: PieceKind): string => {
     const key = `${owner}:${kind}`;
     const count = (counters.get(key) ?? 0) + 1;
     counters.set(key, count);
     return `${owner}-${kind}-${count}`;
   };
+}
 
-  for (const placement of ruleset.setup.southPlacements) {
-    const southStack = getStack(board, placement.coord);
-    for (const kind of placement.pieces) {
-      southStack.push({ id: nextId('south', kind), kind, owner: 'south' });
-      consumeHandPiece(hands, 'south', kind);
-    }
+function placePlacements(
+  board: Board,
+  hands: HandState,
+  placements: readonly SetupPlacement[],
+  owner: Player,
+  nextId: (owner: Player, kind: PieceKind) => string,
+) {
+  for (const placement of placements) {
+    const coord = owner === 'south' ? placement.coord : mirrorCoord(placement.coord);
+    const stack = getStack(board, coord);
 
-    const mirrored = mirrorCoord(placement.coord);
-    const northStack = getStack(board, mirrored);
     for (const kind of placement.pieces) {
-      northStack.push({ id: nextId('north', kind), kind, owner: 'north' });
-      consumeHandPiece(hands, 'north', kind);
+      stack.push({ id: nextId(owner, kind), kind, owner });
+      consumeHandPiece(hands, owner, kind);
     }
   }
 }
 
-export function createInitialGame(rulesetId: RulesetId = 'beginner'): GameState {
+function placeFixedSetup(board: Board, hands: HandState, ruleset: Ruleset) {
+  if (ruleset.setup.kind !== 'fixed') {
+    return;
+  }
+
+  const nextId = createIdFactory();
+  placePlacements(board, hands, ruleset.setup.southPlacements, 'south', nextId);
+  placePlacements(board, hands, ruleset.setup.southPlacements, 'north', nextId);
+}
+
+function placeRecommendedSetup(board: Board, hands: HandState, ruleset: Ruleset) {
+  if (ruleset.setup.kind !== 'free') {
+    return;
+  }
+
+  const nextId = createIdFactory();
+  placePlacements(board, hands, ruleset.setup.preferredPlacements, 'south', nextId);
+}
+
+export function createInitialGame(
+  rulesetId: RulesetId = 'beginner',
+  setupTemplateId: SetupTemplateId = 'manual',
+): GameState {
   const ruleset = getRuleset(rulesetId);
   const board = createEmptyBoard();
   const hands = createEmptyHands(ruleset);
@@ -77,10 +100,13 @@ export function createInitialGame(rulesetId: RulesetId = 'beginner'): GameState 
 
   if (ruleset.setup.kind === 'fixed') {
     placeFixedSetup(board, hands, ruleset);
+  } else if (setupTemplateId === 'recommended') {
+    placeRecommendedSetup(board, hands, ruleset);
   }
 
   return {
     rulesetId,
+    setupTemplateId: ruleset.setup.kind === 'free' ? setupTemplateId : null,
     phase: ruleset.setup.kind === 'fixed' ? 'battle' : 'setup',
     board,
     hands,
@@ -97,5 +123,22 @@ export function createInitialGame(rulesetId: RulesetId = 'beginner'): GameState 
     clock: createInitialClock(timestamp),
     createdAt: timestamp,
     updatedAt: timestamp,
+  };
+}
+
+export function applySetupTemplate(
+  state: GameState,
+  setupTemplateId: SetupTemplateId = 'manual',
+): GameState {
+  if (state.phase !== 'setup') {
+    return state;
+  }
+
+  const templateState = createInitialGame(state.rulesetId, setupTemplateId);
+  return {
+    ...templateState,
+    clock: state.clock,
+    createdAt: state.createdAt,
+    updatedAt: new Date().toISOString(),
   };
 }

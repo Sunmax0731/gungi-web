@@ -765,6 +765,7 @@ export function applyMove(
       ...provisionalState,
       winner: move.player,
       victoryReason: 'checkmate',
+      clock: advanceClock(state.clock, recordedAt, false),
     };
   }
 

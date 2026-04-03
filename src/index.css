@@ -384,6 +384,134 @@ select:disabled,
   font-size: 0.9rem;
 }
 
+.learning-card {
+  gap: 0.48rem;
+}
+
+.piece-insight-card {
+  align-content: start;
+}
+
+.piece-insight-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.18rem 0.58rem;
+  border-radius: 999px;
+  background: var(--md-primary-container);
+  color: var(--md-on-primary-container);
+  font-size: 0.72rem;
+  font-weight: 700;
+}
+
+.piece-insight-list {
+  display: grid;
+  gap: 0.32rem;
+}
+
+.piece-insight-list strong {
+  font-size: 0.78rem;
+}
+
+.movement-preview {
+  display: grid;
+  gap: 0.48rem;
+  border-radius: 18px;
+  background: var(--md-surface-container-low);
+  padding: 0.56rem;
+}
+
+.movement-preview-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+}
+
+.movement-preview-toolbar span {
+  color: var(--md-on-surface-variant);
+  font-size: 0.72rem;
+  font-weight: 600;
+}
+
+.movement-preview-tier-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.32rem;
+}
+
+.movement-tier-button,
+.piece-picker-button {
+  border: 1px solid rgba(124, 119, 111, 0.18);
+  border-radius: 999px;
+  background: var(--md-surface-container-high);
+  color: var(--md-on-surface-variant);
+  padding: 0.3rem 0.64rem;
+  font-size: 0.74rem;
+  font-weight: 700;
+}
+
+.movement-tier-button.active,
+.piece-picker-button.active {
+  background: var(--md-primary-container);
+  color: var(--md-on-primary-container);
+}
+
+.movement-grid {
+  display: grid;
+  grid-template-columns: repeat(9, minmax(0, 1fr));
+  gap: 0.16rem;
+}
+
+.movement-cell {
+  display: grid;
+  place-items: center;
+  aspect-ratio: 1;
+  border-radius: 10px;
+  background: rgba(59, 47, 39, 0.74);
+  color: var(--md-on-surface);
+  font-size: 0.68rem;
+  font-weight: 700;
+}
+
+.movement-cell.origin {
+  background: #f4d8a2;
+  color: #3f2d00;
+}
+
+.movement-cell.target {
+  background: rgba(89, 130, 116, 0.92);
+  color: #f4fff8;
+}
+
+.movement-preview-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.45rem 0.7rem;
+  color: var(--md-on-surface-variant);
+  font-size: 0.7rem;
+}
+
+.movement-preview-legend span {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+}
+
+.movement-legend-swatch {
+  display: inline-block;
+  width: 0.78rem;
+  height: 0.78rem;
+  border-radius: 4px;
+}
+
+.movement-legend-swatch.origin {
+  background: #f4d8a2;
+}
+
+.movement-legend-swatch.target {
+  background: rgba(89, 130, 116, 0.92);
+}
+
 .error-text {
   margin: 0;
   border-radius: 18px;
@@ -849,6 +977,29 @@ select:hover,
   padding: 0.74rem;
 }
 
+.compact-list {
+  gap: 0.36rem;
+}
+
+.modal-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 0.6rem;
+  margin-top: 0.72rem;
+}
+
+.modal-toolbar strong {
+  font-size: 0.82rem;
+}
+
+.modal-toolbar-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.42rem;
+}
+
 .modal-list,
 .modal-log {
   display: grid;
@@ -864,13 +1015,28 @@ select:hover,
 }
 
 .modal-log li {
+  border-bottom: 1px solid rgba(124, 119, 111, 0.14);
+  padding-bottom: 0.45rem;
+}
+
+.replay-log li.active {
+  border-radius: 16px;
+  background: rgba(61, 49, 37, 0.72);
+  padding: 0.45rem;
+}
+
+.log-entry-button {
   display: flex;
+  width: 100%;
   justify-content: space-between;
   align-items: center;
   flex-wrap: wrap;
   gap: 0.6rem;
-  border-bottom: 1px solid rgba(124, 119, 111, 0.14);
-  padding-bottom: 0.45rem;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  padding: 0;
+  text-align: left;
 }
 
 .modal-log-meta {
@@ -879,6 +1045,25 @@ select:hover,
   gap: 0.45rem;
   color: var(--md-on-surface-variant);
   font-variant-numeric: tabular-nums;
+}
+
+.piece-picker-grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.36rem;
+  margin-top: 0.58rem;
+}
+
+.rule-guide-piece-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(260px, 320px);
+  gap: 0.72rem;
+  margin-top: 0.72rem;
+}
+
+.rule-guide-piece-copy {
+  display: grid;
+  gap: 0.48rem;
 }
 
 .modal-action-row {
@@ -950,6 +1135,10 @@ select:hover,
     align-items: flex-start;
   }
 
+  .rule-guide-piece-layout {
+    grid-template-columns: 1fr;
+  }
+
   .board-frame-plain .board-canvas,
   .board-frame-plain .board-loading {
     min-height: 378px;
@@ -982,7 +1171,8 @@ select:hover,
 
   .section-actions,
   .settings-cluster,
-  .modal-action-row {
+  .modal-action-row,
+  .modal-toolbar-actions {
     flex-direction: column;
     width: 100%;
   }
@@ -1012,5 +1202,9 @@ select:hover,
     width: calc(100% - 1.6rem);
     top: 0.8rem;
     left: 0.8rem;
+  }
+
+  .movement-grid {
+    gap: 0.12rem;
   }
 }

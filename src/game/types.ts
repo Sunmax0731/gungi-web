@@ -4,6 +4,8 @@ export type Player = 'south' | 'north';
 
 export type RulesetId = 'beginner' | 'advanced';
 
+export type SetupTemplateId = 'manual' | 'recommended';
+
 export type VictoryReason = 'capture' | 'checkmate' | 'resign';
 
 export type CpuLevel = 'easy' | 'normal' | 'hard';
@@ -153,6 +155,7 @@ export interface GameClock {
 
 export interface GameState {
   rulesetId: RulesetId;
+  setupTemplateId: SetupTemplateId | null;
   phase: GamePhase;
   board: Board;
   hands: HandState;

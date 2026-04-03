@@ -46,6 +46,7 @@ function createEmptyHands(): GameState['hands'] {
 function createCustomGame(rulesetId: RulesetId = 'beginner', turn: Player = 'south'): GameState {
   return {
     rulesetId,
+    setupTemplateId: null,
     phase: 'battle',
     board: createEmptyBoard(),
     hands: createEmptyHands(),
@@ -108,6 +109,19 @@ describe('gungi engine', () => {
     expect(state.board.flat()).toHaveLength(0);
     expect(legalMoves.every((move) => move.type === 'deploy')).toBe(true);
     expect(legalMoves.every((move) => move.type !== 'deploy' || move.pieceKind === 'marshal')).toBe(true);
+  });
+
+  it('creates an advanced recommended setup with south placements prefilled', () => {
+    const state = createInitialGame('advanced', 'recommended');
+
+    expect(state.phase).toBe('setup');
+    expect(state.setupTemplateId).toBe('recommended');
+    expect(state.turn).toBe('south');
+    expect(getStack(state.board, { x: 4, y: 8 }).at(-1)?.kind).toBe('marshal');
+    expect(getStack(state.board, { x: 3, y: 7 }).at(-1)?.kind).toBe('minor');
+    expect(state.hands.south.marshal).toBe(0);
+    expect(state.hands.south.general).toBe(0);
+    expect(state.hands.north.marshal).toBe(1);
   });
 
   it('generates legal drops for the beginner opening player', () => {
@@ -393,5 +407,39 @@ describe('gungi engine', () => {
     expect(nextState.history.at(-1)?.elapsedMs).toBe(5_000);
     expect(nextState.clock.matchElapsedMs).toBe(5_000);
     expect(nextState.clock.runningSince).toBe('2026-04-02T00:00:05.000Z');
+  });
+
+  it('stops the match clock when checkmate ends the game', () => {
+    const state = createCustomGame();
+    placePiece(state, 'south', 'marshal', { x: 0, y: 8 }, 's0');
+    placePiece(state, 'north', 'marshal', { x: 4, y: 0 }, 'n0');
+    placePiece(state, 'south', 'general', { x: 4, y: 2 }, 's1');
+    placePiece(state, 'south', 'lieutenant', { x: 2, y: 1 }, 's2');
+    placePiece(state, 'south', 'lieutenant', { x: 6, y: 1 }, 's3');
+    placePiece(state, 'south', 'minor', { x: 3, y: 2 }, 's4');
+    placePiece(state, 'south', 'minor', { x: 5, y: 2 }, 's5');
+
+    const mateMove = generateLegalMoves(state).find(
+      (candidate): candidate is Extract<GameMove, { type: 'move' }> =>
+        candidate.type === 'move' &&
+        candidate.from.x === 4 &&
+        candidate.from.y === 2 &&
+        candidate.to.x === 4 &&
+        candidate.to.y === 1,
+    );
+
+    expect(mateMove).toBeTruthy();
+    if (!mateMove) {
+      return;
+    }
+
+    const nextState = applyMove(state, mateMove, {
+      recordedAt: '2026-04-02T00:00:05.000Z',
+    });
+
+    expect(nextState.winner).toBe('south');
+    expect(nextState.victoryReason).toBe('checkmate');
+    expect(nextState.clock.matchElapsedMs).toBe(5_000);
+    expect(nextState.clock.runningSince).toBeNull();
   });
 });

@@ -1,11 +1,15 @@
 import { createInitialGame } from './setup';
-import { type GameState, type RulesetId } from './types';
+import { type GameState, type RulesetId, type SetupTemplateId } from './types';
 
 const STORAGE_KEY = 'gungi-web-save-v3';
 const LEGACY_STORAGE_KEYS = ['gungi-web-save-v2', 'gungi-web-save-v1'] as const;
 
 function normalizeRulesetId(value: unknown): RulesetId {
   return value === 'advanced' ? 'advanced' : 'beginner';
+}
+
+function normalizeSetupTemplateId(value: unknown): SetupTemplateId {
+  return value === 'recommended' ? 'recommended' : 'manual';
 }
 
 function isGameState(value: unknown): value is Partial<GameState> {
@@ -19,7 +23,8 @@ function isGameState(value: unknown): value is Partial<GameState> {
 
 function normalizeGameState(value: Partial<GameState>): GameState {
   const normalizedRulesetId = normalizeRulesetId(value.rulesetId);
-  const fallback = createInitialGame(normalizedRulesetId);
+  const normalizedSetupTemplateId = normalizeSetupTemplateId(value.setupTemplateId);
+  const fallback = createInitialGame(normalizedRulesetId, normalizedSetupTemplateId);
   const now = new Date().toISOString();
   const createdAt = value.createdAt ?? fallback.createdAt;
   const updatedAt = value.updatedAt ?? fallback.updatedAt;
@@ -33,23 +38,35 @@ function normalizeGameState(value: Partial<GameState>): GameState {
         elapsedMs: typeof record.elapsedMs === 'number' ? record.elapsedMs : 0,
       }))
     : fallback.history;
+  const normalizedClock = value.clock ?? fallbackClock;
 
   return {
     ...fallback,
     ...value,
     rulesetId: normalizedRulesetId,
+    setupTemplateId: normalizedRulesetId === 'advanced' ? normalizedSetupTemplateId : null,
     phase: value.phase ?? fallback.phase,
     startingPlayer: value.startingPlayer ?? fallback.startingPlayer,
     setupReady: value.setupReady ?? fallback.setupReady,
     history,
-    clock: value.clock ?? fallbackClock,
+    clock: value.winner
+      ? {
+          matchElapsedMs: normalizedClock.matchElapsedMs,
+          turnElapsedMs: normalizedClock.turnElapsedMs,
+          runningSince: null,
+        }
+      : normalizedClock,
     createdAt,
     updatedAt,
   };
 }
 
 function readStorage(): string | null {
-  return window.localStorage.getItem(STORAGE_KEY) ?? LEGACY_STORAGE_KEYS.map((key) => window.localStorage.getItem(key)).find(Boolean) ?? null;
+  return (
+    window.localStorage.getItem(STORAGE_KEY) ??
+    LEGACY_STORAGE_KEYS.map((key) => window.localStorage.getItem(key)).find(Boolean) ??
+    null
+  );
 }
 
 export function loadSavedGame(): GameState | null {
