@@ -398,6 +398,11 @@ select:disabled,
   gap: 0.48rem;
 }
 
+.action-hints-card .modal-list {
+  font-size: 0.74rem;
+  line-height: 1.28;
+}
+
 .piece-insight-card {
   align-content: start;
 }

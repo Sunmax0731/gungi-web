@@ -607,7 +607,6 @@ function App() {
       <div className="app-shell">
         <aside className="panel info-panel">
           <div className="panel-header">
-            <p className="eyebrow">ブラウザゲーム</p>
             <h1>軍儀</h1>
           </div>
 
@@ -728,7 +727,7 @@ function App() {
             </section>
           ) : null}
 
-          <section className="card learning-card">
+          <section className="card learning-card action-hints-card">
             <h2>今できること</h2>
             <ul className="modal-list compact-list">
               {actionHints.map((hint) => (
